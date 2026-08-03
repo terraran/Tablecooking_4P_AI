@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Table Cooking</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#160f06;--panel:#2a1e0e;--panel2:#332512;--card:#fff9ee;
+  --accent:#e8a020;--accent2:#c05c10;--text:#f5e8d0;--muted:#a08060;
+  --border:rgba(232,160,32,.22);--ok:#27ae60;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px}
+button{cursor:pointer;border:none;border-radius:7px;font-family:inherit;font-size:13px;transition:.12s}
+button:hover:not(:disabled){filter:brightness(1.18)}
+button:disabled{opacity:.35;cursor:default}
+h3,h4{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+
+/* Screens */
+.screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:100;overflow-y:auto;padding:24px}
+.screen.active{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+.screen-title{font-size:2.2rem;font-weight:800;color:var(--accent);text-align:center}
+.screen-sub{color:var(--muted);text-align:center}
+.diff-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;max-width:560px;width:100%}
+.diff-btn{padding:20px 14px;border-radius:12px;color:#fff;font-weight:700;display:flex;flex-direction:column;gap:6px;align-items:center;border:2px solid transparent}
+.diff-btn span{font-size:.78rem;font-weight:400;opacity:.85;text-align:center}
+.diff-easy{background:#1e5c30;border-color:#27ae60}.diff-med{background:#1a3a5c;border-color:#2980b9}.diff-hard{background:#4a1a10;border-color:#c0392b}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;width:100%;max-width:620px}
+.pick-btn{background:var(--panel);border:2px solid transparent;color:var(--text);padding:14px;border-radius:10px;text-align:left}
+.pick-btn.selected{border-color:var(--accent);background:#4a2e08}
+.mission-grid{display:grid;gap:10px;width:100%;max-width:540px}
+.mission-btn{background:var(--panel);border:2px solid transparent;color:var(--text);padding:14px 18px;border-radius:10px;text-align:left;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.mission-btn.selected{border-color:var(--accent);background:#4a2e08}
+.mpts{color:var(--accent);font-weight:700;white-space:nowrap}
+.confirm-btn{background:var(--accent);color:#1a0a00;padding:12px 36px;font-size:1rem;font-weight:700;border-radius:8px}
+
+/* Game layout */
+#game{display:none;grid-template-columns:1fr 300px;gap:10px;padding:10px;height:100vh}
+#game.active{display:grid}
+#left{display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto}
+#right{display:flex;flex-direction:column;gap:10px;min-height:0}
+.box{background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:10px}
+
+/* Market */
+#tracks{display:flex;gap:10px;flex-wrap:wrap}
+.trk{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:64px}
+.trk-name{font-size:.7rem;font-weight:700}
+.bar{display:flex;gap:2px}
+.pip{width:13px;height:19px;border-radius:3px;opacity:.2;font-size:.55rem;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.pip.on{opacity:1;box-shadow:0 0 6px currentColor}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.mc{background:var(--card);border-radius:8px;padding:9px;color:#2a1a05;border:2px solid transparent;position:relative}
+.mc.cook{border-color:var(--ok);box-shadow:0 0 10px rgba(39,174,96,.45)}
+.mc.hand{border-color:var(--accent)}
+.mc .nm{font-weight:700;font-size:.78rem;line-height:1.2;margin-bottom:4px;padding-right:26px}
+.mc .tp{display:inline-block;font-size:.62rem;padding:1px 6px;border-radius:10px;color:#fff;margin-bottom:5px}
+.mc .lv{font-size:.62rem;color:#a06;margin-bottom:3px;font-weight:600}
+.mc .rq{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:5px}
+.dot{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.58rem;color:#fff}
+.dot.have{outline:2px solid var(--ok)}
+.mc .pt{position:absolute;top:5px;right:7px;font-size:1.05rem;font-weight:800;color:#c05c10}
+.mc button{width:100%;margin-top:3px;padding:5px;color:#fff;border-radius:5px;font-size:.72rem;font-weight:700}
+.b-cook{background:var(--ok)}.b-draw{background:#8e44ad}
+
+/* Player */
+.pinfo{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px}
+.stat-lbl{font-size:.65rem;color:var(--muted)}
+.coins{font-size:1.3rem;font-weight:800;color:var(--accent)}
+.fr{display:flex;gap:3px;flex-wrap:wrap}
+.slot{width:23px;height:23px;border-radius:5px;border:1px dashed #5a4630;display:flex;align-items:center;justify-content:center;font-size:.68rem}
+.tset{display:flex;gap:5px;flex-wrap:wrap}
+.tcell{border-radius:6px;padding:4px 9px;color:#fff;font-size:.72rem;font-weight:700;
+  display:flex;align-items:center;gap:5px;line-height:1;border:2px solid transparent}
+.tcell.miss{background:#3a2e20!important;color:#8a7a60;border-style:dashed;border-color:#5a4a34}
+.tcell .cnt{background:rgba(0,0,0,.3);border-radius:9px;padding:1px 6px;font-size:.68rem}
+.cookrow{display:flex;gap:3px;flex-wrap:wrap;margin-top:5px}
+.cookpip{width:19px;height:19px;border-radius:50%;color:#fff;font-size:.6rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center}
+.chip{background:var(--accent2);color:#fff;padding:3px 7px;border-radius:4px;font-size:.68rem;font-weight:700}
+.msn{background:#4a1a6a;color:#e0c0ff;padding:5px 10px;border-radius:6px;font-size:.72rem;display:inline-block}
+
+/* Score */
+#score-box{background:linear-gradient(135deg,#3a2a10,#2a1e0e);border:1px solid var(--accent)}
+.sc-total{font-size:1.9rem;font-weight:800;color:var(--accent);line-height:1}
+.sc-line{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);padding:1px 0}
+.sc-line b{color:var(--text)}
+
+/* Actions */
+.arow{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.ab{padding:9px 14px;border-radius:7px;font-weight:700;font-size:.82rem}
+.a-buy{background:#1a4a6a;color:#9ed8ff}.a-draw{background:#4a1a6a;color:#dcb5ff}
+.a-up{background:#4a2a0a;color:#f7c974}.a-col{background:#1a4a1a;color:#9ff09f}
+.a-cook{background:var(--ok);color:#fff}.a-end{background:#6a4a1a;color:#ffd9a0}
+
+/* Panels */
+.pnl{background:#1e1508;border:1px solid var(--accent);border-radius:8px;padding:12px;margin-top:9px;display:none}
+.pnl.on{display:block}
+.pnl h4{color:var(--accent);margin-bottom:8px}
+.pbtns{display:flex;gap:7px;flex-wrap:wrap}
+.ibtn{padding:8px 12px;border-radius:6px;font-weight:700;color:#fff;font-size:.8rem;line-height:1.3}
+.ibtn.bonus{outline:2px solid var(--ok)}
+.obtn{padding:9px 12px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:.78rem;text-align:left;max-width:170px}
+.cancel{background:#4a3a2a;color:#ccc;padding:7px 14px;border-radius:6px;margin-top:9px}
+.step{display:none}.step.on{display:block}
+.note{font-size:.75rem;color:var(--muted);margin-bottom:7px}
+
+/* Opponents */
+.opp{background:var(--panel2);border-radius:7px;padding:8px;font-size:.76rem;margin-bottom:6px}
+.opp-hd{display:flex;justify-content:space-between;font-weight:700;color:var(--accent);margin-bottom:4px}
+.tiny{width:15px;height:15px;border-radius:50%;font-size:.55rem;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.tsq{width:16px;height:16px;border-radius:3px;background:var(--accent2);color:#fff;font-size:.55rem;display:flex;align-items:center;justify-content:center}
+
+/* Log */
+#log{flex:1;overflow-y:auto;font-size:.74rem;min-height:120px}
+.le{padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);color:var(--muted)}
+.le.me{color:var(--text)}.le.ck{color:#8fe89f}.le.bn{color:var(--accent)}.le.rd{color:#ff9f8f}
+
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;align-items:center;justify-content:center;font-size:1.2rem;color:var(--accent);font-weight:700}
+#overlay.on{display:flex}
+
+/* End screen */
+#end-wrap{width:100%;max-width:900px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+#end-log{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;max-height:60vh;overflow-y:auto;font-size:.74rem}
+.srow{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border);gap:10px}
+.srow:last-child{border:none}
+.stot{font-size:1.3rem;font-weight:800;color:var(--accent)}
+.sdet{font-size:.7rem;color:var(--muted);line-height:1.5}
+@media(max-width:900px){#game{grid-template-columns:1fr}#end-wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="screen active" id="s-intro">
+  <div class="screen-title">🍳 Table Cooking</div>
+  <div class="screen-sub">รับบทเชฟ แข่งกับ AI 3 คน — ปรุงครบ 7 เมนูเพื่อจบเกม</div>
+  <div style="max-width:520px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:.84rem;line-height:1.7">
+    <b style="color:var(--accent)">คู่แข่งเล่นแบบสมดุล</b><br>
+    สร้างเครื่องยนต์ไปพร้อมกับปรุงอาหาร กันเงินสำรองไว้ซื้อวัตถุดิบเสมอ
+    และจะทิ้งแผนอัปเกรดทันทีที่มีใครใกล้ปรุงครบ 7 เมนู
+  </div>
+  <button class="confirm-btn" onclick="chooseMode()">เริ่มเกม</button>
+</div>
+
+<div class="screen" id="s-mission">
+  <div class="screen-title">🎯 เลือกภารกิจลับ</div>
+  <div class="screen-sub">เลือก 1 ใบจาก 3 — AI จะไม่เห็นจนจบเกม</div>
+  <div class="mission-grid" id="m-choices"></div>
+  <button class="confirm-btn" id="m-ok" onclick="confirmMission()" disabled>ยืนยัน</button>
+</div>
+
+<div class="screen" id="s-cards">
+  <div class="screen-title">🃏 เลือกการ์ดเมนูเริ่มต้น</div>
+  <div class="screen-sub">เลือก 1–3 ใบ ที่เหลือจะถูกสับกลับเข้ากอง</div>
+  <div class="card-grid" id="c-choices"></div>
+  <button class="confirm-btn" id="c-ok" onclick="confirmCards()" disabled>เริ่มเกม</button>
+</div>
+
+<div id="game">
+  <div id="left">
+    <div class="box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <h3>ตลาดกลาง</h3>
+        <span id="turn-badge" style="background:var(--accent);color:#1a0a00;padding:3px 11px;border-radius:20px;font-weight:700;font-size:.78rem"></span>
+      </div>
+      <div id="tracks"></div>
+    </div>
+
+    <div class="box">
+      <h3 style="margin-bottom:7px">การ์ดเมนูกลาง — ขอบเขียวคือปรุงได้ทันที</h3>
+      <div class="cards" id="center-cards"></div>
+    </div>
+
+    <div class="box">
+      <h3 style="margin-bottom:7px">การ์ดในมือ (<span id="hcount">0</span>/5) — ค้างไว้ตอนจบเกมโดนหักใบละ 2</h3>
+      <div class="cards" id="hand-cards"></div>
+    </div>
+
+    <div class="box">
+      <div class="pinfo">
+        <div><div class="stat-lbl">เงิน</div><div class="coins" id="p-coins">💰 30</div></div>
+        <div><div class="stat-lbl">ตู้เย็น <span id="fu">0</span>/<span id="fc">4</span></div><div class="fr" id="p-fridge"></div></div>
+        <div><div class="stat-lbl">แผ่นครัว</div><div class="fr" id="p-tiles"></div></div>
+        <div><div class="stat-lbl">ภารกิจลับ</div><div class="msn" id="p-mission"></div></div>
+      </div>
+
+      <div class="stat-lbl" style="margin-bottom:4px">ประเภทที่ปรุงแล้ว — ครบทั้ง 4 ได้ +10 แต้ม</div>
+      <div class="tset" id="p-types"></div>
+      <div class="cookrow" id="p-cooked"></div>
+
+      <h4>ฟรีแอคชัน</h4>
+      <div class="arow">
+        <button class="ab a-cook" id="b-cook" onclick="humanCook()">🍳 ปรุงอาหาร</button>
+        <span id="cook-hint" style="font-size:.74rem;color:var(--muted)"></span>
+      </div>
+
+      <h4 style="margin-top:9px">แอคชันหลัก — เลือกอย่างเดียวต่อรอบ</h4>
+      <div class="arow">
+        <button class="ab a-buy"  id="b-buy"  onclick="startBuy()">🛒 ซื้อวัตถุดิบ</button>
+        <button class="ab a-draw" id="b-draw" onclick="startDraw()">📋 หยิบเมนู</button>
+        <button class="ab a-up"   id="b-up"   onclick="startUpgrade()">🔨 ต่อเติมครัว</button>
+        <button class="ab a-col"  id="b-col"  onclick="humanCollect()">💰 เก็บเงิน +10</button>
+        <button class="ab a-end"  id="b-end"  onclick="endHumanTurn()" disabled>จบรอบ →</button>
+      </div>
+
+      <div class="pnl" id="pnl-buy">
+        <h4>ซื้อวัตถุดิบ</h4>
+        <div class="step on" id="bs0">
+          <div class="note">เคาน์เตอร์ปลดล็อกแล้ว — เลือกรูปแบบการซื้อ</div>
+          <div class="pbtns">
+            <button class="obtn" onclick="buyMode(1)"><b>ชนิดเดียว</b><br><small>ซื้อได้สูงสุด 2 ชิ้น ราคาขยับขึ้น 2 ขั้น</small></button>
+            <button class="obtn" onclick="buyMode(2)"><b>2 ชนิดต่างกัน</b><br><small>ชนิดละ 1 ชิ้น แต่ละชนิดขึ้นแค่ขั้นเดียว</small></button>
+          </div>
+        </div>
+        <div class="step" id="bs1"><div class="note" id="bs1-note">เลือกชนิดที่ต้องการซื้อ</div><div class="pbtns" id="bs1-btns"></div></div>
+        <div class="step" id="bs2"><div class="note" id="bs2-note"></div><div class="pbtns" id="bs2-btns"></div></div>
+        <div class="step" id="bs3"><div class="note" id="bs3-note"></div><div class="pbtns" id="bs3-btns"></div></div>
+        <button class="cancel" onclick="cancelBuy()">ยกเลิก</button>
+      </div>
+
+      <div class="pnl" id="pnl-up">
+        <h4>ต่อเติมห้องครัว — 10 เหรียญ</h4>
+        <div class="pbtns" id="up-opts"></div>
+        <button class="cancel" onclick="closePanels()">ยกเลิก</button>
+      </div>
+
+      <div class="pnl" id="pnl-draw">
+        <h4>หยิบการ์ดเมนู</h4>
+        <div class="pbtns" id="draw-opts"></div>
+        <button class="cancel" onclick="closePanels()">ยกเลิก</button>
+      </div>
+
+      <div class="pnl" id="pnl-cook">
+        <h4>เลือกเมนูที่จะปรุง</h4>
+        <div class="pbtns" id="cook-opts"></div>
+        <button class="cancel" onclick="closePanels()">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="right">
+    <div class="box" id="score-box">
+      <h3>คะแนนปัจจุบันของคุณ</h3>
+      <div class="sc-total" id="sc-total">0</div>
+      <div id="sc-lines" style="margin-top:6px"></div>
+    </div>
+    <div class="box" style="max-height:34vh;overflow-y:auto"><h3 style="margin-bottom:6px">คู่แข่ง</h3><div id="opps"></div></div>
+    <div class="box" style="display:flex;flex-direction:column;flex:1;min-height:0">
+      <h3 style="margin-bottom:6px">บันทึกการเล่น</h3>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="s-end">
+  <div class="screen-title">🏆 จบเกม</div>
+  <div id="end-wrap">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="box" id="end-scores"></div>
+      <div class="box" id="end-stats"></div>
+    </div>
+    <div id="end-log"><h3 style="margin-bottom:8px">บันทึกทั้งเกม (เรียงจากเริ่มต้น)</h3><div id="end-log-entries"></div></div>
+  </div>
+  <button class="confirm-btn" onclick="location.reload()">เล่นใหม่</button>
+</div>
+
+<div id="overlay">🤔 AI กำลังคิด…</div>
+
+<script>
+const MENUS=[{"n":"Potato Soup","p":15,"l":4,"r":[0,1,0,1,0,1],"t":"Soup","o":[5,1,3]},{"n":"Salmon Steak","p":15,"l":0,"r":[0,0,2,0,1,0],"t":"Main Course","o":[2,2,4]},{"n":"Macaron","p":16,"l":4,"r":[0,0,0,2,1,0],"t":"Dessert","o":[3,3,4]},{"n":"Dango","p":12,"l":1,"r":[0,0,0,1,1,0],"t":"Dessert","o":[3,4]},{"n":"Tamato Soup","p":12,"l":2,"r":[0,0,0,0,1,1],"t":"Soup","o":[5,4]},{"n":"JP Curry rice","p":6,"l":1,"r":[1,0,0,0,0,0],"t":"Main Course","o":[0]},{"n":"Pork Satay","p":7,"l":1,"r":[1,1,0,0,0,0],"t":"Appetizer","o":[0,1]},{"n":"Toong Tong","p":18,"l":5,"r":[1,0,1,1,0,0],"t":"Appetizer","o":[0,2,3]},{"n":"Egg Drop Soup","p":10,"l":2,"r":[0,0,0,1,0,1],"t":"Soup","o":[5,3]},{"n":"Mushroom Soup","p":15,"l":0,"r":[0,0,0,1,0,2],"t":"Soup","o":[5,5,3]},{"n":"Mango Sticky Rice","p":9,"l":0,"r":[0,0,0,1,1,0],"t":"Dessert","o":[4,3]},{"n":"ChessBurger","p":15,"l":0,"r":[1,0,0,1,0,1],"t":"Main Course","o":[0,3,5]},{"n":"Gyoza","p":10,"l":1,"r":[1,1,0,0,0,0],"t":"Appetizer","o":[0,1]},{"n":"Thai Auspicioius Dessert","p":18,"l":5,"r":[0,0,0,4,0,0],"t":"Dessert","o":[3,3,3,3]},{"n":"Chuka Wakame","p":15,"l":2,"r":[0,0,0,0,1,2],"t":"Appetizer","o":[5,5,4]},{"n":"Khao-Chae","p":20,"l":5,"r":[1,1,1,0,0,1],"t":"Main Course","o":[0,2,1,5]},{"n":"Sashimni Bento","p":18,"l":4,"r":[0,0,4,0,0,0],"t":"Main Course","o":[2,2,2,2]},{"n":"Shabu","p":15,"l":5,"r":[1,1,1,0,0,0],"t":"Main Course","o":[0,2,1]},{"n":"Takoyaki","p":16,"l":2,"r":[0,1,1,1,0,0],"t":"Appetizer","o":[2,1,3]},{"n":"Daifuku","p":14,"l":0,"r":[0,0,0,1,2,0],"t":"Dessert","o":[4,4,3]},{"n":"Spaghetti Cabbonara","p":14,"l":1,"r":[1,0,1,1,0,0],"t":"Main Course","o":[0,2,3]},{"n":"Kanom Krok","p":9,"l":0,"r":[0,0,0,1,0,1],"t":"Dessert","o":[5,3]},{"n":"Pad Thai","p":14,"l":0,"r":[0,0,2,1,0,0],"t":"Main Course","o":[2,2,3]},{"n":"Steamed Flour with Coconut Filling","p":15,"l":0,"r":[0,0,0,1,2,0],"t":"Dessert","o":[3,4,4]},{"n":"Pork Bone Soup","p":20,"l":5,"r":[2,1,0,0,0,1],"t":"Soup","o":[0,1,5,0]},{"n":"Minced Pork Macaroni Soup","p":11,"l":0,"r":[1,0,0,1,0,0],"t":"Soup","o":[3,0]},{"n":"Ramen Chashu Pork","p":10,"l":0,"r":[1,0,1,0,0,0],"t":"Main Course","o":[0,2]},{"n":"Pizza","p":15,"l":3,"r":[0,1,1,1,0,0],"t":"Main Course","o":[2,3,1]},{"n":"Massaman Curry","p":15,"l":3,"r":[0,2,0,1,0,0],"t":"Main Course","o":[1,1,3]},{"n":"Caesar Salad","p":18,"l":0,"r":[1,1,1,0,0,1],"t":"Appetizer","o":[0,1,2,5]},{"n":"Tempura","p":13,"l":3,"r":[0,0,1,1,0,0],"t":"Appetizer","o":[2,3]},{"n":"Tom Yum Kung","p":10,"l":2,"r":[0,0,1,0,0,1],"t":"Soup","o":[2,5]},{"n":"Cupcake","p":12,"l":3,"r":[0,0,0,1,1,0],"t":"Dessert","o":[3,4]},{"n":"Panna Cotta","p":18,"l":0,"r":[0,0,0,1,3,0],"t":"Dessert","o":[4,4,4,3]},{"n":"Salmon Salad","p":9,"l":0,"r":[0,0,2,0,0,0],"t":"Appetizer","o":[2,2]},{"n":"Garlic Bread","p":12,"l":2,"r":[0,0,0,2,0,0],"t":"Appetizer","o":[3,3]},{"n":"Pineapple Fried Rice","p":10,"l":0,"r":[0,0,0,0,1,1],"t":"Main Course","o":[4,5]},{"n":"Spinach Soup","p":10,"l":1,"r":[0,0,0,0,0,2],"t":"Soup","o":[5,5]},{"n":"Fruit Shaped Mung Beans","p":14,"l":0,"r":[0,0,0,1,2,0],"t":"Dessert","o":[4,4,3]},{"n":"Pumpkin Soup","p":4,"l":1,"r":[0,0,0,0,0,1],"t":"Soup","o":[5]},{"n":"Stir-Fried Basil and Fried Egg","p":10,"l":2,"r":[0,2,0,0,0,0],"t":"Main Course","o":[1,1]},{"n":"Corn Soup","p":14,"l":0,"r":[0,0,0,0,1,2],"t":"Soup","o":[5,5,4]},{"n":"Papaya Salad with Roast Chicken","p":22,"l":4,"r":[0,2,0,0,1,1],"t":"Main Course","o":[1,1,5,4]},{"n":"Tonkatsu with Rice","p":15,"l":0,"r":[1,0,1,0,0,1],"t":"Main Course","o":[0,2,5]},{"n":"Ice Cream Sorbet","p":10,"l":2,"r":[0,0,0,0,2,0],"t":"Dessert","o":[4,4]},{"n":"Fried Chicken","p":14,"l":0,"r":[0,2,1,0,0,0],"t":"Main Course","o":[1,1,2]},{"n":"Minced Pork Tofu Soup","p":11,"l":0,"r":[1,0,0,1,0,0],"t":"Soup","o":[3,0]},{"n":"Watermelon with Sweet Dried Fish","p":11,"l":0,"r":[0,0,1,0,1,0],"t":"Appetizer","o":[2,4]},{"n":"Chor Muang","p":12,"l":3,"r":[0,1,0,1,0,0],"t":"Appetizer","o":[1,3]},{"n":"Kabayaki","p":5,"l":2,"r":[0,0,1,0,0,0],"t":"Main Course","o":[2]},{"n":"Deep Fried Minced Prok Toast","p":24,"l":4,"r":[1,1,0,1,0,1],"t":"Appetizer","o":[0,3,5,1]},{"n":"Miso Soup","p":20,"l":0,"r":[1,0,0,0,2,1],"t":"Soup","o":[5,0,4,4]},{"n":"Matcha Ice Cream with Red Bean","p":15,"l":2,"r":[0,0,0,2,0,1],"t":"Dessert","o":[3,3,5]},{"n":"Beef Wellington","p":14,"l":2,"r":[2,0,0,0,0,1],"t":"Main Course","o":[0,0,5]}];
+const MISSIONS=[{"e":"จบเกมเป็นคนแรก","p":5},{"e":"ต่อเติมครัวครบทุกแผ่น","p":5},{"e":"เงินน้อยกว่า 10 เหรียญ","p":7},{"e":"เงินมากกว่า 30 เหรียญ","p":7},{"e":"ไม่ใช้ไก่ทำอาหาร","p":7},{"e":"ไม่ใช้ซีฟู้ดทำอาหาร","p":7},{"e":"ไม่ใช้เนื้อทำอาหาร","p":7},{"e":"ปรุงอาหาร Main Course 4 เมนู","p":5},{"e":"ปรุงอาหาร Soup 3 เมนู","p":5},{"e":"ปรุงอาหาร Appetizer 3 เมนู","p":5},{"e":"ปรุงอาหาร Dessert 3 เมนู","p":5},{"e":"เหลือวัตถุดิบ ≥ 4 ชิ้น","p":5},{"e":"ไม่เหลือวัตถุดิบ","p":7},{"e":"3 คะแนนต่อวัตถุดิบที่ราคา 10 ตอนจบเกม","p":3},{"e":"3 คะแนนต่อวัตถุดิบที่ราคา 2 ตอนจบเกม","p":3},{"e":"ใช้วัตถุดิบ Flour อย่างน้อย 4 เมนู","p":7},{"e":"ใช้วัตถุดิบ Fruit อย่างน้อย 4 เมนู","p":7},{"e":"ใช้วัตถุดิบ Vegetable อย่างน้อย 4 เมนู","p":7}];
+const PT=[2,3,5,7,10], IN=['เนื้อ','ไก่','ซีฟู้ด','แป้ง','ผลไม้','ผัก'],
+ IC=['#c0392b','#d4ac0d','#2471a3','#c9a84c','#e67e22','#229954'], IE=['🥩','🍗','🦐','🌾','🍊','🥦'],
+ TN={'Appetizer':'อาหารว่าง','Soup':'ซุป','Main Course':'จานหลัก','Dessert':'ของหวาน'},
+ TC={'Appetizer':'#e74c3c','Soup':'#2980b9','Main Course':'#27ae60','Dessert':'#8e44ad'},
+ TILEN=['ชั้นวางของ','เตาอบ','ตู้เย็น 6','เคาน์เตอร์','ตู้เย็น 8'],
+ TILED=['หยิบเมนูได้ 2 ครั้ง/รอบ','ปรุงอาหารได้ 2 ครั้ง/รอบ','ตู้เย็นขยายเป็น 6 ช่อง','ซื้อวัตถุดิบต่างชนิด 2 ชนิด','ตู้เย็นขยายเป็น 8 ช่อง'],
+ TILEP=[2,2,2,2,5];
+
+let G,cookedThisRound=0,mOffers=[],cOffers=[],pickedM=-1,pickedC=[],
+    mainDone=false,cookUsed=0,fullLog=[],bs={};
+const rnd=()=>Math.random();
+const sh=a=>{for(let i=a.length-1;i>0;i--){const j=(rnd()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const pv=i=>PT[G.prices[i]];
+const fused=p=>G.players[p].fridge.reduce((a,b)=>a+b,0);
+const sleep=m=>new Promise(r=>setTimeout(r,m));
+
+function newGame(){
+  G={prices:[2,2,2,2,2,2],market:[6,6,6,6,6,6],deck:sh([...Array(MENUS.length).keys()]),
+     center:[],trigger:null,done:false,round:1,current:0,committed:[null,null,null,null],
+     players:['คุณ','AI-1','AI-2','AI-3'].map((n,i)=>({name:n,coins:30,fridge:[0,0,0,0,0,0],
+       cap:4,tiles:[],hand:[],cooked:[],mission:-1,human:i===0,
+       st:{spent:0,tokens:0,byPrice:{2:0,3:0,5:0,7:0,10:0},bonus:0,
+           aBuy:0,aDraw:0,aUp:0,aCollect:0,rounds:0,cookRounds:0,earned:0}}))};
+}
+function fillCenter(){while(G.center.length<4&&G.deck.length)G.center.push(G.deck.shift())}
+
+function setupPricing(){
+  const pushed=[];let ci=0,guard=0;
+  while(pushed.length<3&&ci<G.center.length&&guard++<40){
+    const m=MENUS[G.center[ci]];let hit=false;
+    for(const ing of m.o) if(!pushed.includes(ing)){G.prices[ing]=Math.min(4,G.prices[ing]+1);pushed.push(ing);hit=true;break}
+    if(hit){ci++}
+    else if(G.deck.length){const old=G.center[ci];G.center[ci]=G.deck.shift();G.deck.push(old);}
+    else ci++;
+  }
+  for(let i=0;i<6;i++) if(!pushed.includes(i)) G.prices[i]=Math.max(0,G.prices[i]-1);
+  log(`ตั้งราคาเริ่มต้น: ขึ้น ${pushed.map(i=>IN[i]).join(', ')} / ที่เหลือลง 1 ขั้น`);
+}
+
+function canCook(p,mi){const pl=G.players[p],m=MENUS[mi];
+  if(pl.tiles.length<m.l)return false;
+  for(let i=0;i<6;i++) if(pl.fridge[i]<m.r[i]) return false; return true}
+
+function doCook(p,mi){
+  const pl=G.players[p],m=MENUS[mi];
+  for(let i=0;i<6;i++){pl.fridge[i]-=m.r[i];G.market[i]+=m.r[i]}
+  if(pl.hand.includes(mi))pl.hand.splice(pl.hand.indexOf(mi),1);
+  else if(G.center.includes(mi)){G.center.splice(G.center.indexOf(mi),1);fillCenter()}
+  pl.cooked.push(mi);pl.coins+=m.p;pl.st.earned+=m.p;
+  if(pl.cooked.length===7&&G.trigger===null){G.trigger=p;log(`⚠️ ${pl.name} ปรุงครบ 7 เมนู — เกมจะจบเมื่อจบรอบนี้`,'rd')}
+  log(`${pl.name} ปรุง ${m.n} → +${m.p}💰 (+${m.p} แต้ม)`, p===0?'ck':'');
+}
+function doLower(p,i){
+  if(G.prices[i]===0)return;
+  G.prices[i]--;
+  if(G.prices[i]===0){G.players[p].coins++;log(`🎉 ${G.players[p].name} กด${IN[i]}ถึงพื้น (2) รับโบนัส +1💰`,'bn')}
+}
+function doBuy(p,ing){const pl=G.players[p];const c=pv(ing);
+  pl.coins-=c;pl.fridge[ing]++;G.market[ing]=Math.max(0,G.market[ing]-1);
+  pl.st.spent+=c;pl.st.tokens++;pl.st.byPrice[c]=(pl.st.byPrice[c]||0)+1;
+  if(G.prices[ing]<4)G.prices[ing]++;return c}
+function doUpgrade(p,t){G.players[p].st.aUp++;G.players[p].coins-=10;G.players[p].tiles.push(t);
+  if(t===2)G.players[p].cap=Math.max(G.players[p].cap,6);
+  if(t===4)G.players[p].cap=Math.max(G.players[p].cap,8);
+  log(`${G.players[p].name} ต่อเติมครัว: ${TILEN[t]} (-10💰)`,p===0?'me':'')}
+function doCollect(p){G.players[p].st.aCollect++;G.players[p].coins+=10;log(`${G.players[p].name} เก็บเงิน +10💰`,p===0?'me':'')}
+function doDraw(p,mi){G.players[p].st.aDraw++;G.players[p].hand.push(mi);
+  const k=G.center.indexOf(mi); if(k>=0){G.center.splice(k,1);fillCenter()}
+  log(`${G.players[p].name} หยิบเมนู: ${MENUS[mi].n}`,p===0?'me':'')}
+
+function missionScore(p){
+  const pl=G.players[p]; if(pl.mission<0)return 0;
+  const e=MISSIONS[pl.mission].e,pts=MISSIONS[pl.mission].p,cm=pl.cooked.map(i=>MENUS[i]);
+  const T=t=>cm.filter(m=>m.t===t).length, U=i=>cm.filter(m=>m.r[i]>0).length;
+  switch(e){
+    case'จบเกมเป็นคนแรก':return G.trigger===p?pts:0;
+    case'ต่อเติมครัวครบทุกแผ่น':return pl.tiles.length===5?pts:0;
+    case'เงินน้อยกว่า 10 เหรียญ':return pl.coins<10?pts:0;
+    case'เงินมากกว่า 30 เหรียญ':return pl.coins>30?pts:0;
+    case'ไม่ใช้ไก่ทำอาหาร':return cm.every(m=>m.r[1]===0)?pts:0;
+    case'ไม่ใช้ซีฟู้ดทำอาหาร':return cm.every(m=>m.r[2]===0)?pts:0;
+    case'ไม่ใช้เนื้อทำอาหาร':return cm.every(m=>m.r[0]===0)?pts:0;
+    case'ปรุงอาหาร Main Course 4 เมนู':return T('Main Course')>=4?pts:0;
+    case'ปรุงอาหาร Soup 3 เมนู':return T('Soup')>=3?pts:0;
+    case'ปรุงอาหาร Appetizer 3 เมนู':return T('Appetizer')>=3?pts:0;
+    case'ปรุงอาหาร Dessert 3 เมนู':return T('Dessert')>=3?pts:0;
+    case'เหลือวัตถุดิบ ≥ 4 ชิ้น':return fused(p)>=4?pts:0;
+    case'ไม่เหลือวัตถุดิบ':return fused(p)===0?pts:0;
+    case'3 คะแนนต่อวัตถุดิบที่ราคา 10 ตอนจบเกม':return 3*G.prices.filter(x=>PT[x]===10).length;
+    case'3 คะแนนต่อวัตถุดิบที่ราคา 2 ตอนจบเกม':return 3*G.prices.filter(x=>PT[x]===2).length;
+    case'ใช้วัตถุดิบ Flour อย่างน้อย 4 เมนู':return U(3)>=4?pts:0;
+    case'ใช้วัตถุดิบ Fruit อย่างน้อย 4 เมนู':return U(4)>=4?pts:0;
+    case'ใช้วัตถุดิบ Vegetable อย่างน้อย 4 เมนู':return U(5)>=4?pts:0;
+  } return 0;
+}
+function score(p){
+  const pl=G.players[p],cm=pl.cooked.map(i=>MENUS[i]);
+  const menu=cm.reduce((a,m)=>a+m.p,0);
+  const tb=new Set(cm.map(m=>m.t)).size>=4?10:0;
+  const tile=pl.tiles.reduce((a,t)=>a+TILEP[t],0);
+  const ing=fused(p), ms=missionScore(p), hp=-2*pl.hand.length;
+  return{total:menu+tb+tile+ing+ms+hp,menu,tb,tile,ing,ms,hp,n:cm.length};
+}
+
+/* ── AI: single balanced policy ── */
+const AI_TILES=[2,1,0,3];      // fridge6 -> stove -> shelf -> counter
+const AI_RESERVE=12;           // coins held back for ingredients
+
+const aiMax=p=>Math.max(G.players[p].tiles.length,AI_TILES.length);
+const aiCookable=p=>[...G.players[p].hand,...G.center].filter(m=>canCook(p,m));
+const aiMiss=(p,mi)=>MENUS[mi].r.map((v,i)=>Math.max(0,v-G.players[p].fridge[i]));
+const racePressure=()=>Math.max(...G.players.map(x=>x.cooked.length));
+
+/* Late on, a cheap menu costs more than it pays: it burns one of the seven
+   slots and can end the game early on a weak board. */
+function aiWorthCooking(p,mi){
+  if(G.trigger!==null)return true;        // the race has already been called
+  if(racePressure()>=6)return true;       // someone is about to end it anyway
+  const n=G.players[p].cooked.length, pts=MENUS[mi].p;
+  if(n>=6&&pts<14)return false;           // don't end the game on junk
+  if(n>=5&&pts<9)return false;
+  return true;
+}
+function aiCooks(p){
+  const t=G.players[p].tiles.includes(1)?2:1;
+  for(let i=0;i<t;i++){
+    const c=aiCookable(p).filter(m=>aiWorthCooking(p,m)); if(!c.length)break;
+    const mi=c.reduce((a,b)=>MENUS[a].p>=MENUS[b].p?a:b);
+    doCook(p,mi); if(G.committed[p]===mi)G.committed[p]=null;
+  }
+}
+function aiOK(p,mi){
+  const m=MENUS[mi];
+  if(m.l>aiMax(p))return false;
+  if(m.r.reduce((a,b)=>a+b,0)>G.players[p].cap)return false;
+  const ms=aiMiss(p,mi);
+  for(let i=0;i<6;i++)if(ms[i]>G.market[i])return false;
+  return true;
+}
+/* buy-actions still needed for a menu, given the counter tile */
+function aiActs(p,mi){
+  const ms=aiMiss(p,mi), tot=ms.reduce((a,b)=>a+b,0);
+  if(tot===0)return 0;
+  if(G.players[p].tiles.includes(3))return Math.ceil(tot/2);
+  return ms.reduce((a,v)=>a+Math.ceil(v/2),0);
+}
+const aiCost=(p,mi)=>aiMiss(p,mi).reduce((a,v,i)=>a+v*pv(i),0);
+/* Highest price per token the AI will pay in normal play. */
+const aiPriceCap=()=>racePressure()>=5?10:5;
+
+function aiTarget(p){
+  const pl=G.players[p];
+  const pool=[...new Set([...pl.hand,...G.center])].filter(m=>aiOK(p,m));
+  if(!pool.length)return null;
+  const have=new Set(pl.cooked.map(c=>MENUS[c].t));
+  const still=4-have.size;
+  const val=mi=>{
+    let v=MENUS[mi].p-0.9*aiCost(p,mi)-3*aiActs(p,mi);
+    if(pl.hand.includes(mi))v+=3;
+    if(still>0&&!have.has(MENUS[mi].t))v+=10/still;   // share of the +10 set bonus
+    if(pl.cooked.length>=5)v+=0.6*MENUS[mi].p;        // last slots are scarce
+    return v;
+  };
+  return pool.reduce((a,b)=>val(a)>=val(b)?a:b);
+}
+function aiLowers(p,forb,n){
+  const need=G.committed[p]!==null?aiMiss(p,G.committed[p]):[0,0,0,0,0,0];
+  const rank=i=>(G.prices[i]===1?0:1)*10+(need[i]>0?0:1)*3+G.prices[i];
+  return [0,1,2,3,4,5].filter(i=>!forb.includes(i)&&G.prices[i]>0)
+    .sort((a,b)=>rank(a)-rank(b)).slice(0,n);
+}
+function aiDump(p){
+  const pl=G.players[p]; if(fused(p)<pl.cap)return;
+  const need=[0,0,0,0,0,0];
+  [...pl.hand,...G.center].forEach(mi=>{
+    if(MENUS[mi].l<=aiMax(p))MENUS[mi].r.forEach((v,i)=>need[i]=Math.max(need[i],v))});
+  for(let i=0;i<6;i++)if(pl.fridge[i]>need[i]){pl.fridge[i]--;G.market[i]++;return}
+  for(let i=0;i<6;i++)if(pl.fridge[i]>0){pl.fridge[i]--;G.market[i]++;return}
+}
+function aiBuy(p){
+  if(G.committed[p]===null)return false;
+  const pl=G.players[p];
+  let need=aiMiss(p,G.committed[p]).map((v,i)=>({i,v})).filter(x=>x.v>0);
+  if(!need.length)return false;
+  if(fused(p)>=pl.cap){aiDump(p);if(fused(p)>=pl.cap)return false}
+  need.sort((a,b)=>pv(a.i)-pv(b.i));
+  const room=pl.cap-fused(p), cap=aiPriceCap();
+  const closes=aiActs(p,G.committed[p])===1;   // this action finishes the menu
+  // counter: two different kinds — each rises only one step, and it's cheaper
+  if(pl.tiles.includes(3)&&need.length>=2&&room>=2&&
+     G.market[need[0].i]>0&&G.market[need[1].i]>0&&
+     pl.coins>=pv(need[0].i)+pv(need[1].i)&&
+     (closes||Math.max(pv(need[0].i),pv(need[1].i))<=cap)){
+    const a=need[0].i,b=need[1].i,lw=aiLowers(p,[a,b],2);
+    const c=doBuy(p,a)+doBuy(p,b);
+    lw.forEach(l=>doLower(p,l));
+    pl.st.aBuy++;log(`${pl.name} ซื้อ ${IE[a]}${IN[a]} + ${IE[b]}${IN[b]} (${c}💰)`);return true;
+  }
+  const i0=need[0].i;
+  if(G.market[i0]===0||pl.coins<pv(i0))return false;
+  if(!closes&&pv(i0)>cap)return false;          // too dear — wait for the price to fall
+  const mx=Math.min(2,need[0].v,room,G.market[i0]);
+  let n=0,tot=0;
+  for(let k=0;k<mx;k++){
+    if(pl.coins<pv(i0))break;
+    if(!closes&&n>0&&pv(i0)>cap)break;          // refuse the pricey second token
+    const lw=aiLowers(p,[i0],1);
+    tot+=doBuy(p,i0); lw.forEach(l=>doLower(p,l)); n++;
+  }
+  if(n){pl.st.aBuy++;log(`${pl.name} ซื้อ ${IE[i0]}${IN[i0]} ×${n} (${tot}💰)`);return true}
+  return false;
+}
+function aiNextTile(p){
+  const own=new Set(G.players[p].tiles);
+  const rem=AI_TILES.filter(t=>!own.has(t));
+  if(!rem.length)return null;
+  const l2=[0,1,2].every(t=>own.has(t));
+  return (l2?[4,3]:[2,1,0]).find(t=>rem.includes(t))??rem[0];
+}
+/* Build only with spare cash, and never once the race is nearly over. */
+function aiShouldUpgrade(p){
+  const pl=G.players[p];
+  const t=aiNextTile(p);
+  if(t===null||pl.coins<10)return null;
+  if(racePressure()>=5)return null;
+  if(pl.cooked.length>=5)return null;
+  const reserve=G.committed[p]!==null?Math.min(aiCost(p,G.committed[p]),AI_RESERVE):0;
+  if(pl.coins-10<reserve)return null;
+  return t;
+}
+function aiTurn(p){
+  const before=G.players[p].cooked.length;
+  G.players[p].st.rounds++;
+  aiCooks(p);
+  if(G.players[p].cooked.length>before)G.players[p].st.cookRounds++;
+  if(G.done)return;
+  const pl=G.players[p];
+  if(G.committed[p]!==null&&!pl.hand.includes(G.committed[p])&&!G.center.includes(G.committed[p]))
+    G.committed[p]=null;
+  if(G.committed[p]===null)G.committed[p]=aiTarget(p);
+  // drop a target whose ingredients have run away in price
+  if(G.committed[p]!==null){
+    const alt=aiTarget(p);
+    if(alt!==null&&alt!==G.committed[p]){
+      const cur=MENUS[G.committed[p]].p-0.9*aiCost(p,G.committed[p]);
+      const nw =MENUS[alt].p-0.9*aiCost(p,alt);
+      if(nw>cur+4)G.committed[p]=alt;
+    }
+  }
+  let acted=false;
+  // 1. One buy-action away from cooking? Do it — cooking is income.
+  if(G.committed[p]!==null&&aiActs(p,G.committed[p])===1)acted=aiBuy(p);
+  // 2. Build the engine, but only with spare cash.
+  if(!acted){const t=aiShouldUpgrade(p); if(t!==null){doUpgrade(p,t);acted=true}}
+  // 3. Keep buying toward the target.
+  if(!acted)acted=aiBuy(p);
+  // 4. No target -> take a card from the centre.
+  if(!acted&&G.committed[p]===null&&pl.hand.length<5&&G.center.length){
+    const ok=G.center.filter(m=>aiOK(p,m));
+    if(ok.length){doDraw(p,ok.reduce((a,b)=>MENUS[a].p>=MENUS[b].p?a:b));acted=true}
+  }
+  // 5. Nothing playable -> draw blind rather than idle.
+  if(!acted&&G.committed[p]===null&&pl.hand.length<5&&G.deck.length){
+    const mi=G.deck.shift(); pl.hand.push(mi);
+    log(`${pl.name} จั่วการ์ดจากกอง`); acted=true;
+  }
+  // 6. Cash.
+  if(!acted)doCollect(p);
+  if(G.committed[p]===null)G.committed[p]=aiTarget(p);
+  const b2=G.players[p].cooked.length;
+  aiCooks(p);
+  if(G.players[p].cooked.length>b2&&b2===before)G.players[p].st.cookRounds++;
+}
+
+/* ── Setup flow ── */
+function chooseMode(){newGame();
+  mOffers=sh([...Array(MISSIONS.length).keys()]).slice(0,3);
+  document.getElementById('m-choices').innerHTML=mOffers.map((mi,k)=>
+    `<button class="mission-btn" id="mb${k}" onclick="pickM(${k})"><span>${MISSIONS[mi].e}</span><span class="mpts">${MISSIONS[mi].p} แต้ม</span></button>`).join('');
+  showScreen('s-mission')}
+function pickM(k){pickedM=mOffers[k];
+  document.querySelectorAll('.mission-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('mb'+k).classList.add('selected');
+  document.getElementById('m-ok').disabled=false}
+function confirmMission(){
+  G.players[0].mission=pickedM;
+  const rest=sh([...Array(MISSIONS.length).keys()].filter(i=>i!==pickedM));
+  const HARD={'ไม่ใช้ไก่ทำอาหาร':-12,'ไม่ใช้เนื้อทำอาหาร':-12,'เงินมากกว่า 30 เหรียญ':-20,'จบเกมเป็นคนแรก':-14,'ต่อเติมครัวครบทุกแผ่น':-14};
+  const FREE={'ใช้วัตถุดิบ Vegetable อย่างน้อย 4 เมนู':7,'ใช้วัตถุดิบ Flour อย่างน้อย 4 เมนู':7,
+    'ใช้วัตถุดิบ Fruit อย่างน้อย 4 เมนู':5,'เงินน้อยกว่า 10 เหรียญ':7,'ไม่ใช้ซีฟู้ดทำอาหาร':3,
+    '3 คะแนนต่อวัตถุดิบที่ราคา 2 ตอนจบเกม':6,'3 คะแนนต่อวัตถุดิบที่ราคา 10 ตอนจบเกม':4,
+    'เหลือวัตถุดิบ ≥ 4 ชิ้น':5};
+  const ev=m=>{const e=MISSIONS[m].e,b=MISSIONS[m].p;
+    if(e in HARD)return b+HARD[e]; if(e in FREE)return FREE[e]; return b-3};
+  for(let p=1;p<4;p++){const o=rest.splice(0,3);
+    G.players[p].mission=o.reduce((a,b)=>ev(a)>=ev(b)?a:b)}
+  cOffers=G.deck.splice(0,3);
+  document.getElementById('c-choices').innerHTML=cOffers.map((mi,k)=>{
+    const m=MENUS[mi];
+    return `<button class="pick-btn" id="cb${k}" onclick="togC(${k})">
+      <div style="font-weight:700;margin-bottom:4px">${m.n}</div>
+      <div class="tp" style="background:${TC[m.t]};display:inline-block;padding:1px 7px;border-radius:10px;color:#fff;font-size:.68rem">${TN[m.t]}</div>
+      <div class="rq" style="display:flex;gap:2px;margin:6px 0">${reqDots(mi,-1)}</div>
+      ${m.l>0?`<div style="font-size:.7rem;color:#c88">ต้องมี ${m.l} แผ่นครัว</div>`:'<div style="font-size:.7rem;color:#8c8">ไม่ต้องอัปเกรด</div>'}
+      <div style="color:var(--accent);font-weight:700;font-size:1.05rem;margin-top:4px">${m.p} แต้ม</div></button>`}).join('');
+  showScreen('s-cards')}
+function togC(k){const i=cOffers[k];
+  if(pickedC.includes(i)){pickedC.splice(pickedC.indexOf(i),1);document.getElementById('cb'+k).classList.remove('selected')}
+  else{pickedC.push(i);document.getElementById('cb'+k).classList.add('selected')}
+  document.getElementById('c-ok').disabled=!pickedC.length}
+function confirmCards(){
+  G.players[0].hand=[...pickedC];
+  G.deck.push(...cOffers.filter(i=>!pickedC.includes(i)));sh(G.deck);
+  for(let p=1;p<4;p++){const d=G.deck.splice(0,3);
+    const b=d.reduce((x,y)=>MENUS[x].p/Math.max(1,MENUS[x].r.reduce((a,c)=>a+c,0))>=MENUS[y].p/Math.max(1,MENUS[y].r.reduce((a,c)=>a+c,0))?x:y);
+    G.players[p].hand=[b];G.deck.push(...d.filter(c=>c!==b))}
+  sh(G.deck);fillCenter();setupPricing();
+  showScreen(null);document.getElementById('game').classList.add('active');
+  log('— เกมเริ่มต้น —');startTurn()}
+
+/* ── Human turn ── */
+function startTurn(){mainDone=false;cookUsed=0;cookedThisRound=0;
+  G.players[0].st.rounds++;closePanels();render()}
+const cookable=p=>[...G.players[p].hand,...G.center].filter(m=>canCook(p,m));
+const maxCooks=()=>G.players[0].tiles.includes(1)?2:1;
+
+function humanCook(){
+  if(cookUsed>=maxCooks())return;
+  const c=cookable(0); if(!c.length)return;
+  if(c.length===1)return execCook(c[0]);
+  closePanels();
+  document.getElementById('cook-opts').innerHTML=c.map(mi=>
+    `<button class="obtn" onclick="execCook(${mi})"><b>${MENUS[mi].n}</b><br><small>+${MENUS[mi].p}💰 / ${MENUS[mi].p} แต้ม</small></button>`).join('');
+  document.getElementById('pnl-cook').classList.add('on')}
+function execCook(mi){
+  if(!canCook(0,mi)||cookUsed>=maxCooks())return;
+  doCook(0,mi);cookUsed++;
+  if(cookedThisRound===0)G.players[0].st.cookRounds++;
+  cookedThisRound++;closePanels();render()}
+
+function startBuy(){
+  if(mainDone)return; closePanels();
+  const pl=G.players[0];
+  if(fused(0)>=pl.cap){log('ตู้เย็นเต็ม — ปรุงอาหารก่อนเพื่อคืนวัตถุดิบ','rd');render();return}
+  bs={mode:1,a:null,b:null,cnt:0,piece:0,spent:0};   // fresh wizard state
+  document.getElementById('pnl-buy').classList.add('on');
+  if(pl.tiles.includes(3)&&pl.cap-fused(0)>=2){step(0)}
+  else{bs.mode=1;buyStep1()}}
+function buyMode(m){bs.mode=m;buyStep1()}
+function buyStep1(){
+  const pl=G.players[0];
+  document.getElementById('bs1-note').textContent=bs.mode===2?'เลือกชนิดที่ 1':'เลือกชนิดที่ต้องการซื้อ';
+  document.getElementById('bs1-btns').innerHTML='';
+  let any=false;
+  for(let i=0;i<6;i++){
+    if(G.market[i]===0||pl.coins<pv(i))continue; any=true;
+    document.getElementById('bs1-btns').insertAdjacentHTML('beforeend',
+      `<button class="ibtn" style="background:${IC[i]}" onclick="pickA(${i})">${IE[i]} ${IN[i]}<br><small>${pv(i)}💰 · เหลือ ${G.market[i]}</small></button>`)}
+  if(!any){log('ไม่มีวัตถุดิบที่ซื้อได้ (เงินไม่พอ หรือของหมด)','rd');closePanels();render();return}
+  step(1)}
+function pickA(i){
+  bs.a=i;
+  if(bs.mode===2){
+    const pl=G.players[0];
+    document.getElementById('bs2-note').textContent='เลือกชนิดที่ 2 (ต้องต่างจากชนิดแรก)';
+    document.getElementById('bs2-btns').innerHTML='';
+    let any=false;
+    for(let j=0;j<6;j++){
+      if(j===i||G.market[j]===0||pl.coins<pv(i)+pv(j))continue; any=true;
+      document.getElementById('bs2-btns').insertAdjacentHTML('beforeend',
+        `<button class="ibtn" style="background:${IC[j]}" onclick="pickB(${j})">${IE[j]} ${IN[j]}<br><small>รวม ${pv(i)+pv(j)}💰</small></button>`)}
+    if(!any){log('ไม่มีชนิดที่ 2 ที่ซื้อไหว — ลองซื้อชนิดเดียวแทน','rd');bs.mode=1;}
+    else return step(2);
+  }
+  const pl=G.players[0], c1=pv(i), c2=c1+PT[Math.min(4,G.prices[i]+1)];
+  const room=pl.cap-fused(0), mx=Math.min(2,room,G.market[i]);
+  document.getElementById('bs2-note').innerHTML=`${IE[i]} ${IN[i]} ราคาปัจจุบัน <b>${c1}💰</b> — ซื้อกี่ชิ้น?`;
+  let h='';
+  if(mx>=1&&pl.coins>=c1)h+=`<button class="obtn" onclick="setCnt(1)"><b>1 ชิ้น</b><br><small>จ่าย ${c1}💰</small></button>`;
+  if(mx>=2&&pl.coins>=c2)h+=`<button class="obtn" onclick="setCnt(2)"><b>2 ชิ้น</b><br><small>จ่าย ${c1}+${PT[Math.min(4,G.prices[i]+1)]} = ${c2}💰</small></button>`;
+  document.getElementById('bs2-btns').innerHTML=h; step(2)}
+function pickB(j){bs.b=j;bs.cnt=2;bs.piece=0;lowerStep()}
+function setCnt(n){bs.cnt=n;bs.piece=0;lowerStep()}
+function lowerStep(){
+  const forb=bs.mode===2?[bs.a,bs.b]:[bs.a];
+  const opts=[0,1,2,3,4,5].filter(i=>!forb.includes(i)&&G.prices[i]>0);
+  const which=bs.mode===2?(bs.piece===0?IN[bs.a]:IN[bs.b]):IN[bs.a];
+  document.getElementById('bs3-note').innerHTML=
+    `ชิ้นที่ ${bs.piece+1}/${bs.cnt} (ซื้อ ${which}) — เลือกชนิดที่จะ<b>ลดราคา 1 ขั้น</b>`+
+    (bs.mode===2?'<br><small style="color:var(--muted)">ลดราคาชนิดที่ซื้อทั้งสองไม่ได้</small>':'');
+  if(!opts.length){execPiece(-1);return}
+  document.getElementById('bs3-btns').innerHTML=opts.map(i=>
+    `<button class="ibtn${G.prices[i]===1?' bonus':''}" style="background:${IC[i]}" onclick="execPiece(${i})">
+      ${IE[i]} ${IN[i]}<br><small>${pv(i)} → ${PT[G.prices[i]-1]}💰${G.prices[i]===1?' 🎉+1':''}</small></button>`).join('');
+  step(3)}
+function execPiece(low){
+  if(bs.piece===0)G.players[0].st.aBuy++;
+  const ing=bs.mode===2?(bs.piece===0?bs.a:bs.b):bs.a;
+  const paid=doBuy(0,ing);
+  bs.spent+=paid;
+  if(low>=0)doLower(0,low);
+  log(`คุณซื้อ ${IE[ing]}${IN[ing]} จ่าย ${paid}💰${low>=0?` · ลดราคา${IN[low]}`:''}`,'me');
+  bs.piece++;
+  // The main action is spent as soon as any token is bought, even if the
+  // player stops after the first one.
+  mainDone=true;
+  const more=bs.piece<bs.cnt&&fused(0)<G.players[0].cap&&
+    (bs.mode===2?G.market[bs.b]>0:G.market[bs.a]>0)&&
+    G.players[0].coins>=pv(bs.mode===2?bs.b:bs.a);
+  if(more){lowerStep();render()}
+  else{log(`รวมจ่าย ${bs.spent}💰`,'me');finishMain()}}
+
+/* Cancelling the wizard is only free if nothing has been bought yet. */
+function cancelBuy(){
+  if(bs&&bs.piece>0){
+    log(`คุณหยุดซื้อหลังชิ้นที่ ${bs.piece} · รวมจ่าย ${bs.spent}💰`,'me');
+    finishMain();
+  }else{closePanels();render()}
+}
+
+function startUpgrade(){
+  if(mainDone)return; closePanels();
+  const pl=G.players[0];
+  if(pl.coins<10){log('เงินไม่พอ — ต้องมี 10💰','rd');render();return}
+  const own=new Set(pl.tiles), l2=[0,1,2].every(t=>own.has(t));
+  const opts=(l2?[3,4]:[0,1,2]).filter(t=>!own.has(t));
+  if(!opts.length){log('ต่อเติมครัวครบทุกแผ่นแล้ว','rd');render();return}
+  document.getElementById('up-opts').innerHTML=opts.map(t=>
+    `<button class="obtn" onclick="execUp(${t})"><b>${TILEN[t]}</b><br><small>${TILED[t]}</small><br>
+     <small style="color:var(--accent)">+${TILEP[t]} แต้มตอนจบเกม</small></button>`).join('')+
+    (l2?'':`<div class="note" style="width:100%;margin-top:6px">ต้องเก็บระดับสองครบ 3 แผ่นก่อนจึงจะขึ้นระดับสามได้</div>`);
+  document.getElementById('pnl-up').classList.add('on')}
+function execUp(t){doUpgrade(0,t);finishMain()}
+
+function startDraw(){
+  if(mainDone)return; closePanels();
+  const pl=G.players[0];
+  if(pl.hand.length>=5){log('มือเต็ม (สูงสุด 5 ใบ)','rd');render();return}
+  let h=G.center.map(mi=>{const m=MENUS[mi];
+    return `<button class="obtn" onclick="execDraw(${mi})"><b>${m.n}</b><br>
+      <small>${TN[m.t]} · ${m.p} แต้ม${m.l>0?` · ${m.l} แผ่น`:''}</small></button>`}).join('');
+  if(G.deck.length)h+=`<button class="obtn" style="border-style:dashed" onclick="execDeck()"><b>จั่วจากกอง</b><br><small>ไม่เห็นหน้าไพ่ · เหลือ ${G.deck.length} ใบ</small></button>`;
+  if(G.players[0].coins>=3&&G.deck.length>=4)h+=`<button class="obtn" style="border-color:#c05c10" onclick="execRefresh()"><b>ล้างกองกลาง</b><br><small>จ่าย 3💰 เปิดใหม่ 4 ใบ แล้วเลือก 1</small></button>`;
+  document.getElementById('draw-opts').innerHTML=h;
+  document.getElementById('pnl-draw').classList.add('on')}
+function execDraw(mi){doDraw(0,mi);finishMain()}
+function execDeck(){const mi=G.deck.shift();G.players[0].hand.push(mi);
+  log(`คุณจั่วจากกอง: ${MENUS[mi].n}`,'me');finishMain()}
+function execRefresh(){
+  G.players[0].coins-=3;
+  G.deck.push(...G.center);G.center=[];sh(G.deck);fillCenter();
+  log('คุณจ่าย 3💰 ล้างกองกลาง','me');
+  startDraw()}
+
+function humanCollect(){if(mainDone)return;doCollect(0);finishMain()}
+function finishMain(){mainDone=true;closePanels();render()}
+
+function endHumanTurn(){
+  if(!mainDone)return;
+  closePanels();
+  if(G.trigger!==null&&G.current===3){G.done=true;showEnd();return}
+  runAI()}
+
+async function runAI(){
+  document.getElementById('overlay').classList.add('on');
+  for(let p=1;p<4;p++){
+    G.current=p;
+    document.getElementById('overlay').textContent=`🤔 ${G.players[p].name} กำลังคิด…`;
+    render(); await sleep(650);
+    aiTurn(p); render();
+    if(G.trigger!==null&&p===3){G.done=true;
+      document.getElementById('overlay').classList.remove('on');showEnd();return}
+    await sleep(180)}
+  document.getElementById('overlay').classList.remove('on');
+  G.current=0;G.round++;startTurn()}
+
+/* ── Render ── */
+function reqDots(mi,p){
+  const m=MENUS[mi];
+  return m.r.flatMap((v,i)=>[...Array(v)].map((_,k)=>{
+    const have=p>=0&&G.players[p].fridge[i]>k;
+    return `<span class="dot${have?' have':''}" style="background:${IC[i]}${have?'':';opacity:.4'}">${IE[i]}</span>`})).join('')}
+
+function mcard(mi,cook,draw){
+  const m=MENUS[mi], can=canCook(0,mi), inh=G.players[0].hand.includes(mi);
+  const lvOK=G.players[0].tiles.length>=m.l;
+  let b='';
+  if(cook&&can&&cookUsed<maxCooks())b+=`<button class="b-cook" onclick="execCook(${mi})">🍳 ปรุง</button>`;
+  if(draw&&!inh&&!mainDone&&G.players[0].hand.length<5)b+=`<button class="b-draw" onclick="execDraw(${mi})">📋 หยิบ</button>`;
+  return `<div class="mc ${can?'cook':(inh?'hand':'')}">
+    <div class="pt">${m.p}</div><div class="nm">${m.n}</div>
+    <div class="tp" style="background:${TC[m.t]}">${TN[m.t]}</div>
+    ${m.l>0?`<div class="lv" style="color:${lvOK?'#3a3':'#c33'}">ต้องมี ${m.l} แผ่นครัว${lvOK?' ✓':''}</div>`:''}
+    <div class="rq">${reqDots(mi,0)}</div>${b}</div>`}
+
+function missTypes(){
+  const have=new Set(G.players[0].cooked.map(c=>MENUS[c].t));
+  return ['Appetizer','Soup','Main Course','Dessert'].filter(t=>!have.has(t)).map(t=>TN[t]).join(', ');
+}
+function render(){
+  document.getElementById('turn-badge').textContent=
+    G.done?'จบเกม':(G.current===0?`รอบ ${G.round} — ตาคุณ`:`รอบ ${G.round} — ${G.players[G.current].name}`);
+  document.getElementById('tracks').innerHTML=[0,1,2,3,4,5].map(i=>
+    `<div class="trk"><div class="trk-name" style="color:${IC[i]}">${IE[i]} ${IN[i]}</div>
+     <div class="bar">${PT.map((v,k)=>`<div class="pip${k===G.prices[i]?' on':''}" style="background:${IC[i]};color:${IC[i]}">${v}</div>`).join('')}</div>
+     <div style="font-size:.66rem;color:var(--muted)">คงเหลือ ${G.market[i]}</div></div>`).join('');
+  document.getElementById('center-cards').innerHTML=G.center.map(mi=>mcard(mi,true,true)).join('')||'<div class="note">กองกลางว่าง</div>';
+  const pl=G.players[0];
+  document.getElementById('hcount').textContent=pl.hand.length;
+  document.getElementById('hand-cards').innerHTML=pl.hand.map(mi=>mcard(mi,true,false)).join('')||'<div class="note">ไม่มีการ์ดในมือ</div>';
+  document.getElementById('p-coins').textContent='💰 '+pl.coins;
+  document.getElementById('fu').textContent=fused(0);document.getElementById('fc').textContent=pl.cap;
+  let f='';for(let i=0;i<6;i++)for(let v=0;v<pl.fridge[i];v++)f+=`<div class="slot" style="background:${IC[i]};border-style:solid;border-color:${IC[i]}">${IE[i]}</div>`;
+  for(let e=fused(0);e<pl.cap;e++)f+='<div class="slot"></div>';
+  document.getElementById('p-fridge').innerHTML=f;
+  document.getElementById('p-tiles').innerHTML=pl.tiles.length?pl.tiles.map(t=>`<span class="chip">${TILEN[t]}</span>`).join(''):'<span class="note">ยังไม่มี</span>';
+  document.getElementById('p-mission').textContent=pl.mission>=0?`${MISSIONS[pl.mission].e} (${MISSIONS[pl.mission].p})`:'—';
+  const cooked=pl.cooked.map(c=>MENUS[c]);
+  document.getElementById('p-types').innerHTML=['Appetizer','Soup','Main Course','Dessert'].map(t=>{
+    const n=cooked.filter(m=>m.t===t).length;
+    return `<span class="tcell${n?'':' miss'}" style="background:${TC[t]}">${TN[t]}<span class="cnt">${n||'—'}</span></span>`}).join('');
+  document.getElementById('p-cooked').innerHTML=pl.cooked.length
+    ? pl.cooked.map(mi=>`<span class="cookpip" style="background:${TC[MENUS[mi].t]}" title="${MENUS[mi].n} (${TN[MENUS[mi].t]})">${MENUS[mi].p}</span>`).join('')
+      +`<span style="font-size:.7rem;color:var(--muted);align-self:center;margin-left:5px">${pl.cooked.length}/7 เมนู</span>`
+    : '<span class="note">ยังไม่ได้ปรุงเมนูใด</span>';
+  // score
+  const s=score(0);
+  document.getElementById('sc-total').textContent=s.total;
+  document.getElementById('sc-lines').innerHTML=
+    `<div class="sc-line"><span>เมนู ${s.n} ใบ</span><b>+${s.menu}</b></div>
+     <div class="sc-line"><span>โบนัสครบ 4 ประเภท</span><b>${s.tb?'+10':'ขาด '+missTypes()}</b></div>
+     <div class="sc-line"><span>แผ่นครัว ${pl.tiles.length}</span><b>+${s.tile}</b></div>
+     <div class="sc-line"><span>วัตถุดิบเหลือ</span><b>+${s.ing}</b></div>
+     <div class="sc-line"><span>ภารกิจลับ</span><b>${s.ms?'+'+s.ms:'ยังไม่สำเร็จ'}</b></div>
+     <div class="sc-line"><span>การ์ดค้างมือ</span><b>${s.hp}</b></div>`;
+  // buttons
+  document.getElementById('b-cook').disabled=cookUsed>=maxCooks()||!cookable(0).length;
+  const ch=document.getElementById('cook-hint');
+  const rem=maxCooks()-cookUsed, ck=cookable(0).length;
+  ch.textContent=ck===0?'ยังไม่มีเมนูที่ปรุงได้':(rem>0?`ปรุงได้อีก ${rem} ครั้ง · มี ${ck} เมนูพร้อมปรุง`:'ใช้สิทธิ์ปรุงครบแล้ว');
+  ['b-buy','b-draw','b-up','b-col'].forEach(id=>document.getElementById(id).disabled=mainDone);
+  document.getElementById('b-end').disabled=!mainDone;
+  // opponents
+  document.getElementById('opps').innerHTML=[1,2,3].map(p=>{
+    const o=G.players[p];
+    const ing=o.fridge.flatMap((v,i)=>[...Array(v)].map(()=>`<span class="tiny" style="background:${IC[i]}">${IE[i]}</span>`)).join('')||'<span class="note">ว่าง</span>';
+    const tl=o.tiles.map(t=>`<span class="tsq" title="${TILEN[t]}">${t+1}</span>`).join('')||'<span class="note">ไม่มีแผ่น</span>';
+    const ck=o.cooked.map(mi=>`<span class="tiny" style="background:${TC[MENUS[mi].t]}" title="${MENUS[mi].n}">${MENUS[mi].p}</span>`).join('');
+    return `<div class="opp"><div class="opp-hd"><span>${o.name}</span><span>💰${o.coins} · 🍳${o.cooked.length}/7</span></div>
+      <div class="fr" style="margin-bottom:3px">${tl}</div><div class="fr" style="margin-bottom:3px">${ing}</div>
+      <div class="fr">${ck}</div></div>`}).join('');
+}
+function step(n){document.querySelectorAll('#pnl-buy .step').forEach(s=>s.classList.remove('on'));
+  document.getElementById('bs'+n).classList.add('on')}
+function closePanels(){document.querySelectorAll('.pnl').forEach(p=>p.classList.remove('on'))}
+function log(m,c=''){fullLog.push({m,c,r:G?G.round:0});
+  const el=document.getElementById('log');
+  if(!el)return;
+  const d=document.createElement('div');d.className='le '+c;d.textContent=m;
+  el.insertBefore(d,el.firstChild);
+  while(el.children.length>80)el.removeChild(el.lastChild)}
+
+function showEnd(){
+  const rows=[0,1,2,3].map(p=>({p,s:score(p),pl:G.players[p]})).sort((a,b)=>
+    b.s.total-a.s.total||b.s.n-a.s.n||b.pl.coins-a.pl.coins);
+  const md=['🥇','🥈','🥉','4️⃣'];
+  document.getElementById('end-scores').innerHTML='<h3 style="margin-bottom:8px">คะแนนสุดท้าย</h3>'+
+    rows.map((x,k)=>`<div class="srow"><div>
+      <div style="font-weight:700;${k===0?'color:var(--accent);font-size:1.05rem':''}">${md[k]} ${x.pl.name}${x.pl.human?' (คุณ)':''}</div>
+      <div class="sdet">เมนู ${x.s.n} ใบ +${x.s.menu} · 4 ประเภท +${x.s.tb} · แผ่นครัว +${x.s.tile}<br>
+        วัตถุดิบเหลือ +${x.s.ing} · ภารกิจ +${x.s.ms} · การ์ดค้างมือ ${x.s.hp}</div>
+      <div class="sdet" style="color:var(--accent)">ภารกิจ: ${x.pl.mission>=0?MISSIONS[x.pl.mission].e:'—'}</div>
+      </div><div class="stot">${x.s.total}</div></div>`).join('');
+  renderStats();
+  document.getElementById('end-log-entries').innerHTML=
+    fullLog.map(e=>`<div class="le ${e.c}"><span style="color:#6a5a40">R${e.r}</span> ${e.m}</div>`).join('');
+  showScreen('s-end')}
+
+function renderStats(){
+  const me=G.players[0],st=me.st;
+  const avg=st.tokens?st.spent/st.tokens:0;
+  const acts=st.aBuy+st.aDraw+st.aUp+st.aCollect;
+  const idle=st.rounds-st.cookRounds;
+  const cheap=(st.byPrice[2]||0)+(st.byPrice[3]||0);
+  const dear=(st.byPrice[7]||0)+(st.byPrice[10]||0);
+  const cmp=[1,2,3].map(p=>{const s2=G.players[p].st;
+    return {n:G.players[p].name,avg:s2.tokens?s2.spent/s2.tokens:0,cook:G.players[p].cooked.length}});
+  const bestAvg=Math.min(...cmp.map(c=>c.avg).filter(x=>x>0),avg);
+  const row=(l,v,note='')=>`<div class="sc-line" style="padding:3px 0"><span>${l}</span><b>${v}${note?` <span style="color:var(--muted);font-weight:400">${note}</span>`:''}</b></div>`;
+  const bar=(lbl,n,tot,col)=>{const w=tot?Math.round(100*n/tot):0;
+    return `<div style="margin-bottom:4px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted)"><span>${lbl}</span><span>${n} (${w}%)</span></div>
+      <div style="height:7px;background:#241a0c;border-radius:4px;overflow:hidden"><div style="height:100%;width:${w}%;background:${col}"></div></div></div>`};
+  let verdict=[];
+  if(avg>4.0)verdict.push(`ราคาเฉลี่ยที่จ่าย <b>${avg.toFixed(2)}💰</b>/ชิ้น สูงกว่าเป้า 3.5 — ${dear} ชิ้นที่ซื้อในราคา 7-10 คือจุดรั่วหลัก`);
+  else verdict.push(`คุมราคาได้ดี เฉลี่ย <b>${avg.toFixed(2)}💰</b>/ชิ้น (พื้นของรางคือ 2)`);
+  if(idle>st.rounds*0.45)verdict.push(`มี <b>${idle}</b> รอบจาก ${st.rounds} ที่ไม่ได้ปรุงเลย — เกือบครึ่งเกมไม่มีรายได้`);
+  if(st.aUp>=5)verdict.push(`ต่อเติมครัว <b>${st.aUp}</b> แผ่น = ${st.aUp*2} แอคชัน (รวมเก็บเงิน) แผ่นที่ 5 ให้ 5 แต้ม แต่กิน 2 แอคชันที่ทำเมนูได้ 14-22 แต้ม`);
+  if(me.cooked.length<7)verdict.push(`ปรุงได้ <b>${me.cooked.length}</b> ใบจาก 7 — แต่ละใบที่ขาดคือ ~14 แต้ม`);
+  document.getElementById('end-stats').innerHTML=
+    `<h3 style="margin-bottom:8px">สถิติการเล่นของคุณ</h3>
+     ${row('ราคาเฉลี่ยต่อชิ้น',avg.toFixed(2)+'💰',`(${st.tokens} ชิ้น รวม ${st.spent}💰)`)}
+     ${row('ซื้อถูก (2-3💰)',cheap+' ชิ้น')}
+     ${row('ซื้อแพง (7-10💰)',dear+' ชิ้น')}
+     ${row('โบนัสกดราคาถึงพื้น','+'+st.bonus+'💰')}
+     ${row('รายได้จากการปรุง','+'+st.earned+'💰')}
+     ${row('รอบที่ได้ปรุง',st.cookRounds+'/'+st.rounds,`(ว่าง ${idle} รอบ)`)}
+     ${row('แต้มเฉลี่ยต่อเมนู',me.cooked.length?(me.cooked.reduce((a,c)=>a+MENUS[c].p,0)/me.cooked.length).toFixed(1):'—')}
+     <div style="margin:10px 0 6px"><h3>แอคชันหลัก ${acts} ครั้ง</h3></div>
+     ${bar('ซื้อวัตถุดิบ',st.aBuy,acts,'#2471a3')}
+     ${bar('หยิบเมนู',st.aDraw,acts,'#8e44ad')}
+     ${bar('ต่อเติมครัว',st.aUp,acts,'#c05c10')}
+     ${bar('เก็บเงิน',st.aCollect,acts,'#229954')}
+     <div style="margin:10px 0 6px"><h3>เทียบกับคู่แข่ง — ราคาเฉลี่ย/ชิ้น</h3></div>
+     ${row('คุณ',avg.toFixed(2)+'💰',me.cooked.length+' เมนู')}
+     ${cmp.map(c=>row(c.n,c.avg.toFixed(2)+'💰',c.cook+' เมนู')).join('')}
+     <div style="margin-top:10px;padding:10px;background:#241a0c;border-radius:7px;font-size:.76rem;line-height:1.7">
+       <b style="color:var(--accent)">จุดที่ควรปรับ</b><br>${verdict.map(v=>'• '+v).join('<br>')}</div>`;
+}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  if(id)document.getElementById(id).classList.add('active')}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&G&&!G.done&&mainDone)endHumanTurn()});
+</script>
+</body>
+</html>
