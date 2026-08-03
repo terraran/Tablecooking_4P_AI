@@ -650,7 +650,7 @@ function confirmCards(){
 /* ── Human turn ── */
 let snap=null;
 function startTurn(){
-  mainDone=false;cookUsed=0;cookedThisRound=0;
+  mainDone=false;cookUsed=0;cookedThisRound=0;drawsUsed=0;refreshedThisDraw=false;
   G.players[0].st.rounds++;
   // full snapshot so the whole turn can be rewound
   snap={g:JSON.stringify(G),logLen:fullLog.length};
@@ -661,7 +661,7 @@ function undoTurn(){
   if(!mainDone&&cookUsed===0)return;
   G=JSON.parse(snap.g);
   fullLog.length=snap.logLen;
-  mainDone=false;cookUsed=0;cookedThisRound=0;
+  mainDone=false;cookUsed=0;cookedThisRound=0;drawsUsed=0;refreshedThisDraw=false;
   bs={};
   closePanels();
   log('↩️ ยกเลิกแอคชันทั้งหมดในรอบนี้ — เริ่มใหม่ได้','me');
@@ -778,25 +778,72 @@ function startUpgrade(){
   document.getElementById('pnl-up').classList.add('on')}
 function execUp(t){doUpgrade(0,t);finishMain()}
 
+let drawsUsed=0, refreshedThisDraw=false;
+const maxDraws=()=>G.players[0].tiles.includes(0)?2:1;
+
 function startDraw(){
-  if(mainDone)return; closePanels();
+  // the shelf tile grants a second "take a menu" action in the same round
+  if(mainDone&&drawsUsed>=maxDraws())return;
+  if(mainDone&&drawsUsed===0)return;          // a different main action was used
+  closePanels();
   const pl=G.players[0];
-  if(pl.hand.length>=5){log('มือเต็ม (สูงสุด 5 ใบ)','rd');render();return}
+  if(pl.hand.length>=5){log('มือเต็ม (สูงสุด 5 ใบ)','rd');render();
+    if(drawsUsed>0)finishMain(); return}
+  if(!G.center.length&&!G.deck.length){log('ไม่มีการ์ดให้หยิบแล้ว','rd');
+    if(drawsUsed>0)finishMain(); render(); return}
+
+  const bi=bannedIng();
   let h=G.center.map(mi=>{const m=MENUS[mi];
-    return `<button class="obtn" onclick="execDraw(${mi})"><b>${m.n}</b><br>
-      <small>${TN[m.t]} · ${m.p} แต้ม${m.l>0?` · ${m.l} แผ่น`:''}</small></button>`}).join('');
-  if(G.deck.length)h+=`<button class="obtn" style="border-style:dashed" onclick="execDeck()"><b>จั่วจากกอง</b><br><small>ไม่เห็นหน้าไพ่ · เหลือ ${G.deck.length} ใบ</small></button>`;
-  if(G.players[0].coins>=3&&G.deck.length>=4)h+=`<button class="obtn" style="border-color:#c05c10" onclick="execRefresh()"><b>ล้างกองกลาง</b><br><small>จ่าย 3💰 เปิดใหม่ 4 ใบ แล้วเลือก 1</small></button>`;
-  document.getElementById('draw-opts').innerHTML=h;
-  document.getElementById('pnl-draw').classList.add('on')}
-function execDraw(mi){doDraw(0,mi);finishMain()}
-function execDeck(){const mi=G.deck.shift();G.players[0].hand.push(mi);
-  log(`คุณจั่วจากกอง: ${MENUS[mi].n}`,'me');finishMain()}
+    const clash=bi!==undefined&&m.r[bi]>0;
+    const lvOK=pl.tiles.length>=m.l;
+    return `<button class="obtn" style="max-width:210px${clash?';border-color:#c0392b':''}" onclick="execDraw(${mi})">
+      <b>${m.n}</b> <span style="color:var(--accent)">${m.p}</span><br>
+      <span style="display:inline-block;font-size:.65rem;padding:1px 6px;border-radius:9px;color:#fff;background:${TC[m.t]};margin:3px 0">${TN[m.t]}</span>
+      <div style="display:flex;gap:2px;flex-wrap:wrap;margin:4px 0">${reqDots(mi,0)}</div>
+      ${clash?'<div style="color:#ff9f8f;font-size:.7rem;font-weight:700">⚠️ ขัดกับภารกิจลับ</div>':''}
+      ${m.l>0?`<div style="font-size:.68rem;color:${lvOK?'#8c8':'#e88'}">ต้องมี ${m.l} แผ่นครัว${lvOK?' ✓':''}</div>`:''}
+    </button>`}).join('');
+
+  if(G.deck.length)h+=`<button class="obtn" style="border-style:dashed;max-width:150px" onclick="execDeck()"><b>จั่วจากกอง</b><br><small>ไม่เห็นหน้าไพ่ · เหลือ ${G.deck.length} ใบ</small></button>`;
+  if(!refreshedThisDraw&&pl.coins>=3&&G.deck.length>=4)
+    h+=`<button class="obtn" style="border-color:#c05c10;max-width:150px" onclick="execRefresh()"><b>ล้างกองกลาง</b><br><small>จ่าย 3💰 เปิดใหม่ 4 ใบ<br>แล้วต้องเลือก 1 ใบ</small></button>`;
+
+  const left=maxDraws()-drawsUsed;
+  document.getElementById('draw-opts').innerHTML=
+    (maxDraws()>1?`<div class="note" style="width:100%">ชั้นวางของ: หยิบได้ ${maxDraws()} ครั้งต่อรอบ — เหลืออีก ${left} ครั้ง</div>`:'')+h;
+  document.getElementById('pnl-draw').classList.add('on');
+}
+
+function afterDraw(){
+  drawsUsed++;
+  refreshedThisDraw=false;
+  mainDone=true;                       // the main action is spent either way
+  if(drawsUsed<maxDraws()&&G.players[0].hand.length<5&&(G.center.length||G.deck.length)){
+    render(); startDraw();             // shelf tile: offer the second take
+  }else{
+    finishMain();
+  }
+}
+function execDraw(mi){
+  if(drawsUsed>=maxDraws())return;
+  doDraw(0,mi); afterDraw();
+}
+function execDeck(){
+  if(drawsUsed>=maxDraws()||!G.deck.length)return;
+  const mi=G.deck.shift(); G.players[0].hand.push(mi);
+  G.players[0].st.aDraw++;
+  log(`คุณจั่วจากกอง: ${MENUS[mi].n}`,'me');
+  afterDraw();
+}
 function execRefresh(){
+  if(refreshedThisDraw)return;         // once per take-a-menu action
+  if(G.players[0].coins<3||G.deck.length<4)return;
   G.players[0].coins-=3;
-  G.deck.push(...G.center);G.center=[];sh(G.deck);fillCenter();
-  log('คุณจ่าย 3💰 ล้างกองกลาง','me');
-  startDraw()}
+  G.deck.push(...G.center); G.center=[]; sh(G.deck); fillCenter();
+  refreshedThisDraw=true;
+  log('คุณจ่าย 3💰 ล้างกองกลาง — ต้องเลือกการ์ด 1 ใบ','me');
+  render(); startDraw();
+}
 
 function humanCollect(){if(mainDone)return;doCollect(0);finishMain()}
 function finishMain(){mainDone=true;closePanels();render()}
@@ -836,7 +883,8 @@ function mcard(mi,cook,draw){
   const lvOK=G.players[0].tiles.length>=m.l;
   let b='';
   if(cook&&can&&cookUsed<maxCooks())b+=`<button class="b-cook" onclick="execCook(${mi})">🍳 ปรุง</button>`;
-  if(draw&&!inh&&!mainDone&&G.players[0].hand.length<5)b+=`<button class="b-draw" onclick="execDraw(${mi})">📋 หยิบ</button>`;
+  const canTake=(!mainDone||(drawsUsed>0&&drawsUsed<maxDraws()))&&G.players[0].hand.length<5;
+  if(draw&&!inh&&canTake)b+=`<button class="b-draw" onclick="execDraw(${mi})">📋 หยิบ</button>`;
   return `<div class="mc ${can?'cook':(inh?'hand':'')}">
     <div class="pt">${m.p}</div><div class="nm">${m.n}</div>
     <div class="tp" style="background:${TC[m.t]}">${TN[m.t]}</div>
@@ -889,7 +937,9 @@ function render(){
   const ch=document.getElementById('cook-hint');
   const rem=maxCooks()-cookUsed, ck=cookable(0).length;
   ch.textContent=ck===0?'ยังไม่มีเมนูที่ปรุงได้':(rem>0?`ปรุงได้อีก ${rem} ครั้ง · มี ${ck} เมนูพร้อมปรุง`:'ใช้สิทธิ์ปรุงครบแล้ว');
-  ['b-buy','b-draw','b-up','b-col'].forEach(id=>document.getElementById(id).disabled=mainDone);
+  ['b-buy','b-up','b-col'].forEach(id=>document.getElementById(id).disabled=mainDone);
+  document.getElementById('b-draw').disabled =
+    mainDone ? !(drawsUsed>0&&drawsUsed<maxDraws()) : false;
   document.getElementById('b-end').disabled=!mainDone;
   document.getElementById('b-undo').disabled=!(mainDone||cookUsed>0);
   // opponents
