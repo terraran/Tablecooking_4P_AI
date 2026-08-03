@@ -127,8 +127,9 @@ h3,h4{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacin
 .tab{flex:1;padding:10px 8px;border-radius:8px 8px 0 0;background:var(--panel);color:var(--muted);
   font-weight:700;font-size:.85rem;border-bottom:2px solid transparent}
 .tab.on{background:var(--panel2);color:var(--accent);border-bottom-color:var(--accent)}
+#s-end.active{justify-content:flex-start;padding-top:20px;padding-bottom:32px}
 .tabpane{display:none;background:var(--panel);border:1px solid var(--border);border-radius:0 0 10px 10px;
-  padding:16px;max-height:58vh;overflow-y:auto}
+  padding:16px;max-height:46vh;overflow-y:auto}
 .tabpane.on{display:block}
 #end-log{font-size:.74rem}
 .srow{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border);gap:10px}
@@ -268,6 +269,10 @@ h3,h4{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacin
 
 <div class="screen" id="s-end">
   <div class="screen-title">🏆 จบเกม</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:4px">
+    <button class="confirm-btn" onclick="downloadRun()" style="background:#2471a3;color:#fff;padding:10px 22px;font-size:.9rem">⬇️ ดาวน์โหลดข้อมูลเกมนี้ (JSON)</button>
+    <button class="confirm-btn" onclick="location.reload()" style="padding:10px 22px;font-size:.9rem">เล่นใหม่</button>
+  </div>
   <div id="end-wrap">
     <div class="tabs">
       <button class="tab on" id="tab-sc"  onclick="showTab('sc')">🏆 คะแนน</button>
@@ -1069,7 +1074,12 @@ function renderStats(){
   if(st.aUp>=5)verdict.push(`ต่อเติมครัว <b>${st.aUp}</b> แผ่น = ${st.aUp*2} แอคชัน (รวมเก็บเงิน) แผ่นที่ 5 ให้ 5 แต้ม แต่กิน 2 แอคชันที่ทำเมนูได้ 14-22 แต้ม`);
   if(me.cooked.length<7)verdict.push(`ปรุงได้ <b>${me.cooked.length}</b> ใบจาก 7 — แต่ละใบที่ขาดคือ ~14 แต้ม`);
   document.getElementById('end-stats').innerHTML=
-    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px">
+    `<div style="margin-bottom:12px;padding:10px;background:#14304a;border-radius:8px;display:flex;
+        justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+       <span style="font-size:.8rem">บันทึกจุดตัดสินใจไว้ <b>${decisions.length}</b> จุดในเกมนี้</span>
+       <button onclick="downloadRun()" style="background:#2471a3;color:#fff;padding:8px 16px;border-radius:6px;font-weight:700;font-size:.8rem">⬇️ ดาวน์โหลด JSON</button>
+     </div>
+     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px">
       <div>
         <h3 style="margin-bottom:6px">เศรษฐกิจ</h3>
         ${row('ราคาเฉลี่ยต่อชิ้น',avg.toFixed(2)+'💰',`${st.tokens} ชิ้น · รวม ${st.spent}💰`)}
