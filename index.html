@@ -278,7 +278,10 @@ h3,h4{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacin
     <div class="tabpane"    id="pane-st"><div id="end-stats"></div></div>
     <div class="tabpane"    id="pane-lg"><div id="end-log"><div id="end-log-entries"></div></div></div>
   </div>
-  <button class="confirm-btn" onclick="location.reload()">เล่นใหม่</button>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button class="confirm-btn" onclick="downloadRun()" style="background:#2471a3;color:#fff">⬇️ ดาวน์โหลดข้อมูลเกมนี้ (JSON)</button>
+    <button class="confirm-btn" onclick="location.reload()">เล่นใหม่</button>
+  </div>
 </div>
 
 <div id="overlay">🤔 AI กำลังคิด…</div>
@@ -648,12 +651,56 @@ function confirmCards(){
   log('— เกมเริ่มต้น —');startTurn()}
 
 /* ── Human turn ── */
+// ── Decision recorder ──────────────────────────────────────────────────
+// Every human choice is stored together with the alternatives that were
+// available at that moment — the options NOT taken are what make the data
+// learnable.
+let decisions=[];
+function snapshotState(){
+  const pl=G.players[0];
+  const menuBrief=mi=>({id:mi,n:MENUS[mi].n,p:MENUS[mi].p,t:MENUS[mi].t,
+                        lvl:MENUS[mi].l,req:[...MENUS[mi].r],
+                        miss:MENUS[mi].r.map((v,i)=>Math.max(0,v-pl.fridge[i])),
+                        cookable:canCook(0,mi)});
+  return {
+    round:G.round, coins:pl.coins,
+    fridge:[...pl.fridge], cap:pl.cap,
+    tiles:[...pl.tiles],
+    prices:G.prices.map(x=>PT[x]), stock:[...G.market],
+    center:G.center.map(menuBrief),
+    hand:pl.hand.map(menuBrief),
+    cooked:pl.cooked.map(mi=>({id:mi,p:MENUS[mi].p,t:MENUS[mi].t})),
+    typesHave:[...new Set(pl.cooked.map(mi=>MENUS[mi].t))],
+    mission:pl.mission>=0?MISSIONS[pl.mission].e:null,
+    rivals:G.players.slice(1).map(o=>({name:o.name,persona:o.persona?o.persona.id:null,
+      cooked:o.cooked.length,coins:o.coins,tiles:o.tiles.length})),
+    trigger:G.trigger,
+    mainDone, cookUsed, drawsUsed
+  };
+}
+function legalOptions(){
+  const pl=G.players[0], o={};
+  o.cook=[...pl.hand,...G.center].filter(mi=>canCook(0,mi))
+        .map(mi=>({id:mi,n:MENUS[mi].n,p:MENUS[mi].p,t:MENUS[mi].t}));
+  o.buy=[0,1,2,3,4,5].filter(i=>G.market[i]>0&&pl.coins>=pv(i)&&fused(0)<pl.cap)
+        .map(i=>({ing:i,name:IN[i],price:pv(i),stock:G.market[i]}));
+  o.draw=G.center.map(mi=>({id:mi,n:MENUS[mi].n,p:MENUS[mi].p,t:MENUS[mi].t}));
+  const own=new Set(pl.tiles), l2=[0,1,2].every(t=>own.has(t));
+  o.upgrade=pl.coins>=10?(l2?[3,4]:[0,1,2]).filter(t=>!own.has(t))
+        .map(t=>({tile:t,name:TILEN[t]})):[];
+  o.collect=true;
+  return o;
+}
+function record(kind,choice){
+  decisions.push({kind,choice,state:snapshotState(),options:legalOptions()});
+}
+
 let snap=null;
 function startTurn(){
   mainDone=false;cookUsed=0;cookedThisRound=0;drawsUsed=0;refreshedThisDraw=false;
   G.players[0].st.rounds++;
   // full snapshot so the whole turn can be rewound
-  snap={g:JSON.stringify(G),logLen:fullLog.length};
+  snap={g:JSON.stringify(G),logLen:fullLog.length,decLen:decisions.length};
   closePanels();render();
 }
 function undoTurn(){
@@ -661,6 +708,7 @@ function undoTurn(){
   if(!mainDone&&cookUsed===0)return;
   G=JSON.parse(snap.g);
   fullLog.length=snap.logLen;
+  decisions.length=snap.decLen;
   mainDone=false;cookUsed=0;cookedThisRound=0;drawsUsed=0;refreshedThisDraw=false;
   bs={};
   closePanels();
@@ -680,6 +728,7 @@ function humanCook(){
   document.getElementById('pnl-cook').classList.add('on')}
 function execCook(mi){
   if(!canCook(0,mi)||cookUsed>=maxCooks())return;
+  record('cook',{id:mi,n:MENUS[mi].n,p:MENUS[mi].p,t:MENUS[mi].t});
   doCook(0,mi);cookUsed++;
   if(cookedThisRound===0)G.players[0].st.cookRounds++;
   cookedThisRound++;closePanels();render()}
@@ -742,6 +791,10 @@ function lowerStep(){
 function execPiece(low){
   if(bs.piece===0)G.players[0].st.aBuy++;
   const ing=bs.mode===2?(bs.piece===0?bs.a:bs.b):bs.a;
+  record('buy',{ing,name:IN[ing],price:pv(ing),piece:bs.piece+1,of:bs.cnt,
+                mode:bs.mode===2?'two-kinds':'one-kind',
+                lower:low>=0?{ing:low,name:IN[low],from:pv(low),to:PT[Math.max(0,G.prices[low]-1)]}:null,
+                target:G.committed[0]!==null?MENUS[G.committed[0]].n:null});
   const paid=doBuy(0,ing);
   bs.spent+=paid;
   if(low>=0)doLower(0,low);
@@ -776,7 +829,7 @@ function startUpgrade(){
      <small style="color:var(--accent)">+${TILEP[t]} แต้มตอนจบเกม</small></button>`).join('')+
     (l2?'':`<div class="note" style="width:100%;margin-top:6px">ต้องเก็บระดับสองครบ 3 แผ่นก่อนจึงจะขึ้นระดับสามได้</div>`);
   document.getElementById('pnl-up').classList.add('on')}
-function execUp(t){doUpgrade(0,t);finishMain()}
+function execUp(t){record('upgrade',{tile:t,name:TILEN[t]});doUpgrade(0,t);finishMain()}
 
 let drawsUsed=0, refreshedThisDraw=false;
 const maxDraws=()=>G.players[0].tiles.includes(0)?2:1;
@@ -826,6 +879,7 @@ function afterDraw(){
 }
 function execDraw(mi){
   if(drawsUsed>=maxDraws())return;
+  record('draw',{id:mi,n:MENUS[mi].n,p:MENUS[mi].p,t:MENUS[mi].t});
   doDraw(0,mi); afterDraw();
 }
 function execDeck(){
@@ -841,11 +895,12 @@ function execRefresh(){
   G.players[0].coins-=3;
   G.deck.push(...G.center); G.center=[]; sh(G.deck); fillCenter();
   refreshedThisDraw=true;
+  record('refresh',{cost:3});
   log('คุณจ่าย 3💰 ล้างกองกลาง — ต้องเลือกการ์ด 1 ใบ','me');
   render(); startDraw();
 }
 
-function humanCollect(){if(mainDone)return;doCollect(0);finishMain()}
+function humanCollect(){if(mainDone)return;record('collect',{});doCollect(0);finishMain()}
 function finishMain(){mainDone=true;closePanels();render()}
 
 function endHumanTurn(){
@@ -1029,6 +1084,7 @@ function renderStats(){
         ${row('เมนูที่ปรุงได้',me.cooked.length+' / 7')}
         ${row('แต้มเฉลี่ยต่อเมนู',me.cooked.length?(me.cooked.reduce((a,c)=>a+MENUS[c].p,0)/me.cooked.length).toFixed(1):'—')}
         ${row('แผ่นครัว',me.tiles.length+' แผ่น','+'+me.tiles.reduce((a,t)=>a+TILEP[t],0)+' แต้ม')}
+        ${row('จุดตัดสินใจที่บันทึกไว้',decisions.length+' จุด','กดปุ่มดาวน์โหลดด้านล่าง')}
       </div>
       <div>
         <h3 style="margin-bottom:8px">แอคชันหลัก ${acts} ครั้ง</h3>
@@ -1045,6 +1101,24 @@ function renderStats(){
     </div>
     <div style="margin-top:14px;padding:12px;background:#241a0c;border-radius:8px;font-size:.8rem;line-height:1.8">
       <b style="color:var(--accent)">จุดที่ควรปรับ</b><br>${verdict.map(v=>'• '+v).join('<br>')}</div>`;
+}
+function downloadRun(){
+  const rows=[0,1,2,3].map(p=>({name:G.players[p].name,human:G.players[p].human,
+    persona:G.players[p].persona?G.players[p].persona.id:null,
+    score:score(p),
+    cooked:G.players[p].cooked.map(mi=>({n:MENUS[mi].n,p:MENUS[mi].p,t:MENUS[mi].t})),
+    tiles:G.players[p].tiles, coins:G.players[p].coins,
+    mission:G.players[p].mission>=0?MISSIONS[G.players[p].mission].e:null}));
+  const data={version:2, savedAt:new Date().toISOString(),
+    rounds:G.round, trigger:G.trigger,
+    finalPrices:G.prices.map(x=>PT[x]), finalStock:[...G.market],
+    players:rows, stats:G.players[0].st,
+    decisions, log:fullLog};
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`tablecooking_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
 }
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   if(id)document.getElementById(id).classList.add('active')}
