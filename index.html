@@ -144,12 +144,13 @@ h3,h4{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacin
 <div class="screen active" id="s-intro">
   <div class="screen-title">🍳 Table Cooking</div>
   <div class="screen-sub">รับบทเชฟ แข่งกับ AI 3 คน — ปรุงครบ 7 เมนูเพื่อจบเกม</div>
-  <div style="max-width:520px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:.84rem;line-height:1.7">
-    <b style="color:var(--accent)">คู่แข่งมี 4 แนวทาง สุ่มมา 3 คนต่อเกม</b><br><br>
-    <b>ช่างครัว</b> — สร้างครัวก่อน แล้วค่อยเก็บเกี่ยว<br>
-    <b>สายเร่ง</b> — ปรุงถี่ เร่งจบเกมให้เร็วที่สุด<br>
-    <b>พ่อค้า</b> — คุมราคาตลาด ไม่ซื้อของแพงเด็ดขาด<br>
-    <b>เชฟใหญ่</b> — เล็งเมนูคะแนนสูง ยอมช้าเพื่อของดี
+  <div style="max-width:520px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;font-size:.86rem;line-height:2;color:var(--muted)">
+    <span>3 ที่นั่งสุ่มจากบอท 4 แนวทาง และ 1 ที่นั่งที่จองไว้แล้ว</span><br>
+    <span style="font-size:1.1rem;letter-spacing:3px;color:var(--accent)">𓅓𓎛𓋴𓇌 𓂋𓏏</span><span> — ผู้ที่จะนั่งเฝ้าคุณในทุกเกม · ตัวตนที่แท้จริงยังเป็นปริศนา</span><br>
+    <span><b style="color:var(--muted)">ช่างครัว</b> — สร้างครัวก่อน แล้วค่อยเก็บเกี่ยว</span><br>
+    <span><b style="color:var(--muted)">สายเร่ง</b> — ปรุงถี่ เร่งจบเกมให้เร็วที่สุด</span><br>
+    <span><b style="color:var(--muted)">พ่อค้า</b> — คุมราคาตลาด ไม่ซื้อของแพงเด็ดขาด</span><br>
+    <span><b style="color:var(--muted)">เชฟใหญ่</b> — เล็งเมนูคะแนนสูง ยอมช้าเพื่อของดี</span>
   </div>
   <button class="confirm-btn" onclick="chooseMode()">เริ่มเกม</button>
 </div>
@@ -214,6 +215,7 @@ h3,h4{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacin
         <button class="ab a-draw" id="b-draw" onclick="startDraw()">📋 หยิบเมนู</button>
         <button class="ab a-up"   id="b-up"   onclick="startUpgrade()">🔨 ต่อเติมครัว</button>
         <button class="ab a-col"  id="b-col"  onclick="humanCollect()">💰 เก็บเงิน +10</button>
+        <button class="ab" id="b-ret" style="background:#4a2a3a;color:#ffb9c9" onclick="startReturn()">♻️ คืนวัตถุดิบ</button>
         <button class="ab" id="b-undo" style="background:#5a3a1a;color:#ffd9a0" onclick="undoTurn()" disabled>↩️ ยกเลิกทั้งรอบ</button>
         <button class="ab a-end"  id="b-end"  onclick="endHumanTurn()" disabled>จบรอบ →</button>
       </div>
@@ -243,6 +245,13 @@ h3,h4{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacin
         <h4>หยิบการ์ดเมนู</h4>
         <div class="pbtns" id="draw-opts"></div>
         <button class="cancel" onclick="closePanels()">ยกเลิก</button>
+      </div>
+
+      <div class="pnl" id="pnl-ret">
+        <h4>คืนวัตถุดิบกลับตลาดกลาง</h4>
+        <div class="note">กติกา: เมื่อตู้เย็นเต็ม สามารถคืนวัตถุดิบกลับตลาดได้ · ไม่ใช้แอคชัน และไม่ปรับราคา</div>
+        <div class="pbtns" id="ret-opts"></div>
+        <button class="cancel" onclick="closePanels()">ปิด</button>
       </div>
 
       <div class="pnl" id="pnl-cook">
@@ -314,7 +323,7 @@ function newGame(){
   G={prices:[2,2,2,2,2,2],market:[6,6,6,6,6,6],deck:sh([...Array(MENUS.length).keys()]),
      center:[],trigger:null,done:false,round:1,current:0,committed:[null,null,null,null],
      players:['คุณ','AI-1','AI-2','AI-3'].map((n,i)=>({name:n,coins:30,fridge:[0,0,0,0,0,0],
-       cap:4,tiles:[],hand:[],cooked:[],mission:-1,human:i===0,persona:null,
+       cap:4,tiles:[],hand:[],cooked:[],mission:-1,human:i===0,persona:null,lastIng:null,delay:0,
        st:{spent:0,tokens:0,byPrice:{2:0,3:0,5:0,7:0,10:0},bonus:0,
            aBuy:0,aDraw:0,aUp:0,aCollect:0,rounds:0,cookRounds:0,earned:0}}))};
 }
@@ -409,10 +418,13 @@ const PERSONAS=[
   tiles:[2,1,0,3],  cap:3, wCost:1.7, wAct:2.5, wPts:1.0, minPts:0,  reserve:14, quality:true},
  {id:'gourmet',name:'เชฟใหญ่',  desc:'เล็งเมนูคะแนนสูง ยอมช้าเพื่อของดี',
   tiles:[2,1,0,3],  cap:7, wCost:0.4, wAct:2.5, wPts:1.4, minPts:10, reserve:10, quality:true},
+ {id:'arthur', name:'𓅓𓎛𓋴𓇌 𓂋𓏏', desc:'จำลองจากคุณ + จูนแล้ว (ชนะ 23%)',
+  tiles:[2,1,0,3,4], cap:10, wCost:0.8, wAct:0, wPts:1.0, minPts:0, reserve:0, quality:false,
+  mimic:true},
 ];
 const PC=p=>G.players[p].persona;
 
-const aiMax=p=>Math.max(G.players[p].tiles.length,PC(p).tiles.length);
+const aiMax=p=>Math.max(G.players[p].tiles.length,PC(p)?PC(p).tiles.length:0);
 const aiCookable=p=>[...G.players[p].hand,...G.center].filter(m=>canCook(p,m));
 const aiMiss=(p,mi)=>MENUS[mi].r.map((v,i)=>Math.max(0,v-G.players[p].fridge[i]));
 const racePressure=()=>Math.max(...G.players.map(x=>x.cooked.length));
@@ -420,7 +432,7 @@ const racePressure=()=>Math.max(...G.players.map(x=>x.cooked.length));
 /* Late on, a cheap menu costs more than it pays: it burns one of the seven
    slots and can end the game early on a weak board. */
 function aiWorthCooking(p,mi){
-  if(!PC(p).quality)return true;          // the rusher takes everything
+  if(!PC(p)||!PC(p).quality)return true;
   if(G.trigger!==null)return true;        // the race has already been called
   if(racePressure()>=6)return true;       // someone is about to end it anyway
   const n=G.players[p].cooked.length, pts=MENUS[mi].p;
@@ -453,9 +465,10 @@ function aiActs(p,mi){
 }
 const aiCost=(p,mi)=>aiMiss(p,mi).reduce((a,v,i)=>a+v*pv(i),0);
 /* Highest price per token the AI will pay in normal play. */
-const aiPriceCap=p=>racePressure()>=5?10:PC(p).cap;
+const aiPriceCap=p=>racePressure()>=5?10:(PC(p)?PC(p).cap:5);
 
 function aiTarget(p){
+  if(!PC(p))return null;
   const pl=G.players[p], c=PC(p);
   let pool=[...new Set([...pl.hand,...G.center])].filter(m=>aiOK(p,m));
   if(!pool.length)return null;
@@ -467,7 +480,7 @@ function aiTarget(p){
     const m=MENUS[mi];
     let v=c.wPts*m.p - c.wCost*aiCost(p,mi) - c.wAct*aiActs(p,mi);
     if(pl.hand.includes(mi))v+=3;
-    if(still>0&&!have.has(m.t))v+=10/still;         // share of the +10 set bonus
+    if(still>0&&!have.has(m.t))v+=(c.setW||1)*10/still;
     if(pl.cooked.length>=5)v+=0.6*m.p;             // last slots are scarce
     return v;
   };
@@ -537,6 +550,7 @@ function aiBuy(p){
 }
 function aiNextTile(p){
   const own=new Set(G.players[p].tiles);
+  if(!PC(p))return null;
   const rem=PC(p).tiles.filter(t=>!own.has(t));
   if(!rem.length)return null;
   const l2=[0,1,2].every(t=>own.has(t));
@@ -549,10 +563,153 @@ function aiShouldUpgrade(p){
   if(t===null||pl.coins<10)return null;
   if(racePressure()>=5)return null;
   if(pl.cooked.length>=5)return null;
-  const reserve=G.committed[p]!==null?Math.min(aiCost(p,G.committed[p]),PC(p).reserve):0;
+  const reserve=G.committed[p]!==null&&PC(p)?Math.min(aiCost(p,G.committed[p]),PC(p).reserve):0;
   if(pl.coins-10<reserve)return null;
   return t;
 }
+/* ── "เงาของคุณ" — rules fitted from 428 recorded decisions ──────────
+   1. cook whenever possible; prefer a type not yet cooked while the +10
+      set bonus is live, otherwise the highest-point option
+   2. upgrade only as a FALLBACK — when the fridge is full or every
+      reachable menu is expensive to finish. Tile count is an outcome.
+   3. otherwise buy two tokens, rotating off the last ingredient
+   4. spend the price drop on a free floor bonus, else on what's needed  */
+const A_THR=30;        // tuned: 13 (fitted) -> 30 lifted win rate 7.5% -> 23%
+const A_BLOCKED_MIN=15;// a tile-blocked menu must be worth at least this
+const A_SETW=2.0;      // how hard to chase the +10 four-type bonus
+const A_START_CAP=5;   // ราคาเริ่มต้นของชนิดที่เลือก (จริง 90%)
+const A_SPEND_CAP=12;  // ยอดจ่ายรวมต่อแอคชัน (จริง 97%)
+function aFree(p){return G.players[p].cap-fused(p)}
+function aReach(p){
+  const pl=G.players[p], have=pl.tiles.length, fr=aFree(p);
+  return [...new Set([...pl.hand,...G.center])].filter(mi=>{
+    const m=MENUS[mi]; if(m.l>have)return false;
+    const ms=aiMiss(p,mi), tot=ms.reduce((a,b)=>a+b,0);
+    if(tot===0||tot>fr)return false;
+    for(let i=0;i<6;i++)if(ms[i]>G.market[i])return false;
+    return true});
+}
+/* Hold the seventh menu while a type is still missing — but only as long as
+   the field allows. His rule: rivals at 6 -> cook now; at 5 -> a turn or two,
+   more if ingredients are already in the fridge. */
+function aHold7th(p,mi){
+  const pl=G.players[p];
+  if(pl.cooked.length!==6||G.trigger!==null)return false;
+  const have=new Set(pl.cooked.map(x=>MENUS[x].t));
+  if(have.size>=4)return false;                       // nothing to wait for
+  if(!have.has(MENUS[mi].t))return false;             // this one completes the set
+  const rivalMax=Math.max(...G.players.map((o,i)=>i===p?0:o.cooked.length));
+  if(rivalMax>=6)return false;                        // out of time
+  const missing=['Appetizer','Soup','Main Course','Dessert'].filter(t=>!have.has(t));
+  const reachable=[...pl.hand,...G.center].some(x=>
+    missing.includes(MENUS[x].t)&&MENUS[x].l<=pl.tiles.length);
+  if(!reachable)return false;                         // no chance anyway
+  const budget = rivalMax>=5 ? (fused(p)>0?3:2) : 4;
+  pl.delay=(pl.delay||0);
+  if(pl.delay>=budget)return false;
+  pl.delay++;
+  log(`${pl.name} ชะลอเมนูใบที่ 7 — ยังขาด${missing.map(t=>TN[t]).join(', ')}`);
+  return true;
+}
+function aCooks(p){
+  const pl=G.players[p];
+  for(let k=0;k<(pl.tiles.includes(1)?2:1);k++){
+    let c=aiCookable(p); if(!c.length)break;
+    const have=new Set(pl.cooked.map(x=>MENUS[x].t));
+    const fresh=c.filter(mi=>!have.has(MENUS[mi].t));
+    const pool=(fresh.length&&have.size<4)?fresh:c;
+    const mi=pool.reduce((a,b)=>MENUS[a].p>=MENUS[b].p?a:b);
+    if(aHold7th(p,mi))break;
+    doCook(p,mi); if(G.committed[p]===mi)G.committed[p]=null;
+  }
+}
+/* Which ingredient is wanted by the most candidate menus?  Arthur looks at
+   the whole board, not one target card. */
+function aDemand(p){
+  const pl=G.players[p], have=pl.tiles.length, d=[0,0,0,0,0,0];
+  [...new Set([...pl.hand,...G.center])].forEach(mi=>{
+    if(MENUS[mi].l>have)return;
+    aiMiss(p,mi).forEach((v,i)=>{if(v>0)d[i]+=1});
+  });
+  return d;
+}
+function aTarget(p){
+  const r=aReach(p); if(!r.length)return null;
+  const pl=G.players[p], have=new Set(pl.cooked.map(x=>MENUS[x].t)), still=4-have.size;
+  const left=7-pl.cooked.length;
+  const val=mi=>{let v=MENUS[mi].p-0.8*aiCost(p,mi);
+    if(still>0&&!have.has(MENUS[mi].t))v+=A_SETW*(left>still?1.0:2.5)*10/still;
+    if(pl.hand.includes(mi))v+=2; return v};
+  return r.reduce((a,b)=>val(a)>=val(b)?a:b);
+}
+function aWantsUpgrade(p){
+  const pl=G.players[p];
+  if(pl.coins<10||aiNextTile(p)===null)return false;
+  const have=pl.tiles.length;
+  const blocked=[...pl.hand,...G.center].filter(mi=>MENUS[mi].l>have);
+  if(!blocked.length)return false;             // no menu is waiting on a tile
+  if(Math.max(...blocked.map(mi=>MENUS[mi].p))<A_BLOCKED_MIN)return false;
+  if(aFree(p)===0)return true;                 // fridge jammed
+  const r=aReach(p);
+  if(!r.length)return true;
+  return Math.min(...r.map(mi=>aiCost(p,mi)))>=A_THR;
+}
+function aBuy(p){
+  const pl=G.players[p], tgt=aTarget(p);
+  if(tgt===null)return false;
+  let need=aiMiss(p,tgt).map((v,i)=>({i,v})).filter(x=>x.v>0);
+  if(!need.length)return false;
+  // cheap first, rotate off the last ingredient, and favour what several menus want
+  const dem=aDemand(p);
+  const rank=x=>pv(x.i)+(x.i===pl.lastIng?4:0)-1.5*dem[x.i];
+  need.sort((a,b)=>rank(a)-rank(b));
+  const i0=need[0].i;
+  if(G.market[i0]===0||pl.coins<pv(i0)||aFree(p)===0)return false;
+  // his own rule, confirmed at 90% / 97% across 183 recorded buy actions:
+  // start price <= 5, and never more than 12 coins in one action
+  const ms0=aiMiss(p,tgt), remCost=ms0.reduce((a,v,i)=>a+v*pv(i),0);
+  const closes=ms0.reduce((a,b)=>a+b,0)<=Math.min(2,aFree(p))&&pl.coins>=remCost;
+  if(!closes&&pv(i0)>A_START_CAP)return false;
+  const want=Math.min(2,need[0].v,aFree(p),G.market[i0]);
+  let n=0,tot=0,paid=[],dropped=[];
+  for(let k=0;k<want;k++){
+    if(pl.coins<pv(i0))break;
+    if(!closes&&n>0&&tot+pv(i0)>A_SPEND_CAP)break;
+    const lw=aiLowers(p,[i0],1);
+    paid.push(pv(i0)); tot+=doBuy(p,i0);
+    lw.forEach(l=>{doLower(p,l);dropped.push(IN[l])}); n++;
+  }
+  if(!n)return false;
+  pl.lastIng=i0; pl.st.aBuy++;
+  log(`${pl.name} ซื้อ ${IE[i0]}${IN[i0]} ×${n} จ่าย ${paid.join('+')} = ${tot}💰`
+      +(dropped.length?` · ลดราคา${dropped.join(', ')}`:''));
+  return true;
+}
+function arthurTurn(p){
+  aCooks(p); if(G.done)return;
+  const pl=G.players[p];
+  if(G.committed[p]===null)G.committed[p]=aTarget(p);
+  let acted=false;
+  if(aWantsUpgrade(p)){const t=aiNextTile(p); if(t!==null){doUpgrade(p,t);acted=true}}
+  if(!acted)acted=aBuy(p);
+  // stall when everything reachable is expensive: bank money and wait for
+  // the market to come back down (his own words)
+  if(!acted&&aTarget(p)!==null&&pl.coins<15){doCollect(p);acted=true}
+  if(!acted&&aTarget(p)===null&&pl.hand.length<5&&G.deck.length){
+    const mi=G.deck.shift(); pl.hand.push(mi); pl.st.aDraw++;
+    log(`${pl.name} จั่วการ์ดจากกอง`); acted=true;
+  }
+  if(!acted){
+    // he only checks the mission near the end — burning coins is free there
+    const e=MISSIONS[pl.mission]?.e;
+    if(e==='เงินน้อยกว่า 10 เหรียญ'&&pl.cooked.length>=6&&pl.coins>=10){
+      log(`${pl.name} ไม่เก็บเงิน (ภารกิจต้องมีน้อยกว่า 10)`);
+    }else doCollect(p);
+  }
+  G.committed[p]=aTarget(p);
+  aCooks(p);
+}
+
 function aiTurn(p){
   const before=G.players[p].cooked.length;
   G.players[p].st.rounds++;
@@ -599,7 +756,8 @@ function aiTurn(p){
 
 /* ── Setup flow ── */
 function chooseMode(){newGame();
-  const picks=sh([...PERSONAS]).slice(0,3);
+  const arthur=PERSONAS.find(x=>x.id==='arthur');
+  const picks=[arthur,...sh(PERSONAS.filter(x=>x.id!=='arthur')).slice(0,2)];
   for(let p=1;p<4;p++){G.players[p].persona=picks[p-1];G.players[p].name=picks[p-1].name;}
   mOffers=sh([...Array(MISSIONS.length).keys()]).slice(0,3);
   document.getElementById('m-choices').innerHTML=mOffers.map((mi,k)=>
@@ -905,6 +1063,28 @@ function execRefresh(){
   render(); startDraw();
 }
 
+function startReturn(){
+  closePanels();
+  const pl=G.players[0];
+  if(fused(0)===0){log('ตู้เย็นว่าง ไม่มีอะไรให้คืน','rd');render();return}
+  let h='';
+  for(let i=0;i<6;i++){
+    if(!pl.fridge[i])continue;
+    h+=`<button class="ibtn" style="background:${IC[i]}" onclick="execReturn(${i})">
+      ${IE[i]} ${IN[i]}<br><small>มี ${pl.fridge[i]} ชิ้น · คืน 1</small></button>`;
+  }
+  document.getElementById('ret-opts').innerHTML=h;
+  document.getElementById('pnl-ret').classList.add('on');
+}
+function execReturn(i){
+  const pl=G.players[0];
+  if(!pl.fridge[i])return;
+  pl.fridge[i]--; G.market[i]++;
+  log(`คุณคืน ${IE[i]}${IN[i]} 1 ชิ้นกลับตลาด (ราคาไม่เปลี่ยน)`,'me');
+  render();
+  if(fused(0)>0)startReturn(); else closePanels();
+}
+
 function humanCollect(){if(mainDone)return;record('collect',{});doCollect(0);finishMain()}
 function finishMain(){mainDone=true;closePanels();render()}
 
@@ -1001,6 +1181,7 @@ function render(){
   document.getElementById('b-draw').disabled =
     mainDone ? !(drawsUsed>0&&drawsUsed<maxDraws()) : false;
   document.getElementById('b-end').disabled=!mainDone;
+  document.getElementById('b-ret').disabled=fused(0)===0;
   document.getElementById('b-undo').disabled=!(mainDone||cookUsed>0);
   // opponents
   document.getElementById('opps').innerHTML=[1,2,3].map(p=>{
@@ -1009,7 +1190,7 @@ function render(){
     const tl=o.tiles.map(t=>`<span class="tsq" title="${TILEN[t]}">${t+1}</span>`).join('')||'<span class="note">ไม่มีแผ่น</span>';
     const ck=o.cooked.map(mi=>`<span class="tiny" style="background:${TC[MENUS[mi].t]}" title="${MENUS[mi].n}">${MENUS[mi].p}</span>`).join('');
     return `<div class="opp"><div class="opp-hd"><span>${o.name}</span><span>💰${o.coins} · 🍳${o.cooked.length}/7</span></div>
-      <div style="font-size:.66rem;color:var(--muted);margin-bottom:4px">${o.persona?o.persona.desc:''}</div>
+
       <div class="fr" style="margin-bottom:3px">${tl}</div><div class="fr" style="margin-bottom:3px">${ing}</div>
       <div class="fr">${ck}</div></div>`}).join('');
 }
@@ -1036,7 +1217,11 @@ function showEnd(){
   document.getElementById('end-scores').innerHTML='<h3 style="margin-bottom:8px">คะแนนสุดท้าย</h3>'+
     rows.map((x,k)=>`<div class="srow"><div>
       <div style="font-weight:700;${k===0?'color:var(--accent);font-size:1.05rem':''}">${md[k]} ${x.pl.name}${x.pl.human?' (คุณ)':''}</div>
-      ${x.pl.persona?`<div class="sdet" style="color:#c0a878">แนวทาง: ${x.pl.persona.desc}</div>`:''}
+      ${x.pl.persona?`<div class="sdet" style="color:#c0a878">${
+        x.pl.persona.id==='arthur'
+          ? '𓅓𓎛𓋴𓇌 𓂋𓏏 — ตัวตนที่แท้จริงยังเป็นปริศนา'
+          : 'แนวทาง: '+x.pl.persona.desc
+      }</div>`:''}
       <div class="sdet">เมนู ${x.s.n} ใบ +${x.s.menu} · 4 ประเภท +${x.s.tb} · แผ่นครัว +${x.s.tile}<br>
         วัตถุดิบเหลือ +${x.s.ing} · ภารกิจ +${x.s.ms} · การ์ดค้างมือ ${x.s.hp}</div>
       <div class="sdet" style="color:var(--accent)">ภารกิจ: ${x.pl.mission>=0?MISSIONS[x.pl.mission].e:'—'}</div>
