@@ -142,17 +142,68 @@ h3,h4{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacin
 <body>
 
 <div class="screen active" id="s-intro">
-  <div class="screen-title">🍳 Table Cooking</div>
-  <div class="screen-sub">รับบทเชฟ แข่งกับ AI 3 คน — ปรุงครบ 7 เมนูเพื่อจบเกม</div>
-  <div style="max-width:520px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;font-size:.86rem;line-height:2;color:var(--muted)">
-    <span>3 ที่นั่งสุ่มจากบอท 4 แนวทาง และ 1 ที่นั่งที่จองไว้แล้ว</span><br>
-    <span style="font-size:1.1rem;letter-spacing:3px;color:var(--accent)">𓅓𓎛𓋴𓇌 𓂋𓏏</span><span> — ผู้ที่จะนั่งเฝ้าคุณในทุกเกม · ตัวตนที่แท้จริงยังเป็นปริศนา</span><br>
-    <span><b style="color:var(--muted)">ช่างครัว</b> — สร้างครัวก่อน แล้วค่อยเก็บเกี่ยว</span><br>
-    <span><b style="color:var(--muted)">สายเร่ง</b> — ปรุงถี่ เร่งจบเกมให้เร็วที่สุด</span><br>
-    <span><b style="color:var(--muted)">พ่อค้า</b> — คุมราคาตลาด ไม่ซื้อของแพงเด็ดขาด</span><br>
-    <span><b style="color:var(--muted)">เชฟใหญ่</b> — เล็งเมนูคะแนนสูง ยอมช้าเพื่อของดี</span>
+
+  <!-- starfield canvas sits behind everything -->
+  <canvas id="stars" style="position:fixed;inset:0;z-index:0;pointer-events:none"></canvas>
+
+  <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:28px;width:100%;max-width:640px;padding:24px 16px">
+
+    <!-- logo block -->
+    <div style="text-align:center">
+      <div style="font-size:3.4rem;line-height:1;margin-bottom:6px">🍳</div>
+      <div style="font-family:'Georgia',serif;font-size:2.6rem;font-weight:700;color:var(--accent);letter-spacing:2px;text-shadow:0 0 40px rgba(232,160,32,.55)">Table Cooking</div>
+      <div style="color:var(--muted);font-size:.82rem;letter-spacing:3px;text-transform:uppercase;margin-top:4px">Board Game · Digital Edition</div>
+    </div>
+
+    <!-- decorative divider -->
+    <div style="display:flex;align-items:center;gap:10px;width:100%;max-width:420px">
+      <div style="flex:1;height:1px;background:linear-gradient(to right,transparent,var(--border))"></div>
+      <div style="color:var(--accent);font-size:.75rem;letter-spacing:4px">✦ ✦ ✦</div>
+      <div style="flex:1;height:1px;background:linear-gradient(to left,transparent,var(--border))"></div>
+    </div>
+
+    <!-- opponent card -->
+    <div style="background:linear-gradient(135deg,rgba(42,30,14,.95),rgba(26,16,6,.98));border:1px solid rgba(232,160,32,.25);border-radius:14px;padding:22px 28px;width:100%;backdrop-filter:blur(4px)">
+
+      <!-- mystery entity -->
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid rgba(232,160,32,.15)">
+        <div style="width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#c05c10,#3a1a00);display:flex;align-items:center;justify-content:center;font-size:1.2rem;box-shadow:0 0 18px rgba(192,92,16,.6)">👁</div>
+        <div>
+          <div style="color:var(--accent);font-size:1.05rem;letter-spacing:3px">𓅓𓎛𓋴𓇌 𓂋𓏏</div>
+          <div style="color:var(--muted);font-size:.73rem;margin-top:2px">ผู้ที่จะนั่งเฝ้าคุณในทุกเกม · ตัวตนที่แท้จริงยังเป็นปริศนา</div>
+        </div>
+      </div>
+
+      <!-- 3 random bots -->
+      <div style="color:var(--muted);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">3 ที่นั่งสุ่มจากคู่ต่อสู้</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:10px 12px">
+          <div style="color:var(--text);font-size:.82rem;font-weight:700">🔨 ช่างครัว</div>
+          <div style="color:var(--muted);font-size:.72rem;margin-top:2px">สร้างครัวก่อน แล้วค่อยเก็บเกี่ยว</div>
+        </div>
+        <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:10px 12px">
+          <div style="color:var(--text);font-size:.82rem;font-weight:700">⚡ สายเร่ง</div>
+          <div style="color:var(--muted);font-size:.72rem;margin-top:2px">ปรุงถี่ เร่งจบให้เร็วที่สุด</div>
+        </div>
+        <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:10px 12px">
+          <div style="color:var(--text);font-size:.82rem;font-weight:700">💰 พ่อค้า</div>
+          <div style="color:var(--muted);font-size:.72rem;margin-top:2px">คุมตลาด ไม่ซื้อของแพง</div>
+        </div>
+        <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:10px 12px">
+          <div style="color:var(--text);font-size:.82rem;font-weight:700">👨‍🍳 เชฟใหญ่</div>
+          <div style="color:var(--muted);font-size:.72rem;margin-top:2px">เล็งเมนูสูง ยอมช้าเพื่อของดี</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <button onclick="chooseMode()" style="background:linear-gradient(135deg,#e8a020,#c05c10);color:#1a0a00;font-size:1.1rem;font-weight:800;padding:16px 60px;border-radius:50px;border:none;cursor:pointer;letter-spacing:1px;box-shadow:0 0 30px rgba(232,160,32,.4);transition:.2s"
+      onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+      เริ่มเกม
+    </button>
+
+    <div style="color:var(--muted);font-size:.7rem;letter-spacing:1px">© Table Cooking · ลานละเล่น</div>
   </div>
-  <button class="confirm-btn" onclick="chooseMode()">เริ่มเกม</button>
 </div>
 
 <div class="screen" id="s-mission">
@@ -857,6 +908,31 @@ function legalOptions(){
 function record(kind,choice){
   decisions.push({kind,choice,state:snapshotState(),options:legalOptions()});
 }
+
+// starfield
+(function(){
+  const c=document.getElementById('stars');
+  if(!c)return;
+  const ctx=c.getContext('2d');
+  let W,H,stars=[];
+  function init(){
+    W=c.width=window.innerWidth; H=c.height=window.innerHeight;
+    stars=Array.from({length:120},()=>({
+      x:Math.random()*W, y:Math.random()*H,
+      r:Math.random()*1.2+.2, o:Math.random()*.7+.1, s:Math.random()*.4+.05
+    }));
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    stars.forEach(st=>{
+      st.o+=st.s*0.012; if(st.o>0.9||st.o<0.1)st.s*=-1;
+      ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,220,140,${st.o})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',init); init(); draw();
+})();
 
 let snap=null;
 function startTurn(){
